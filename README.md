@@ -19,7 +19,7 @@ The idea of the repository is to have 'easy' to understand codes and to introduc
 The packages used to run the codes are indicated at the beginning of each notebook. It must be considered that the codes for the data-driven and hybrid models are created to run in GPU, therefore a PyTorch version that supports GPU should be installed! For the optimization of the conceptual models using gradient descent, the standard version (CPU) of PyTorch is enough.
 
 ## Citation:
-In case you use H<sup>2</sup>D, please cite our work as follows:
+In case you use H<sup>2</sup>DL, please cite our work as follows:
 
 XXXXXXX
 
