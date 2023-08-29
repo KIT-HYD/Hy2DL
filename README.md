@@ -21,10 +21,11 @@ The idea of the repository is to have 'easy' to understand codes and to introduc
 The packages used to run the codes are indicated at the beginning of each notebook. It must be considered that the codes for the data-driven and hybrid models are created to run in GPU, therefore a PyTorch version that supports GPU should be installed! For the optimization of the conceptual models using gradient descent, the standard version (CPU) of PyTorch is enough.
 
 ## Citation:
-In case you use H<sup>2</sup>DL, please cite our work as follows:
+In case you use Hy<sup>2</sup>DL, please cite our work as follows:
 
-XXXXXXX
-
+```
+Eduardo Acuna Espinoza, Ralf Loritz, & Manuel Álvarez Chaves. (2023). KIT-HYD/Hy2DL: Preview release for submission (v0.1). Zenodo. https://doi.org/10.5281/zenodo.8289021
+```
 
 ## Authors:
  - Eduardo Acuña Espinoza (eduardo.espinoza@kit.edu)
