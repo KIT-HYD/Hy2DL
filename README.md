@@ -10,7 +10,7 @@ The idea of the repository is to have 'easy' to understand codes and to introduc
 
 ## Structure of the repository:
 
-- **data**: Information necessary to run the codes (refer to XX)
+- **data**: Information necessary to run the codes (refer to https://doi.org/10.5281/zenodo.8289409)
 - **ERA5_Land_Processing**: Script to preprocess the ERA5-Land data if one wants to extract basin-wise soil moisture information. The original scripts were taken from Less (https://github.com/tommylees112/neuralhydrology/blob/pixel/notebooks/05b_preprocess_era5.ipynb), and slightly modified to fit our purposes.
 - **Model_Conceptual**: Present the codes to calibrate basin-wise process-based hydrological models using three different methods: gradient descent (gd), Differential Evolution Adaptive Metropolis (dream) and Shuffled Complex Evolution (sce). For the last 2 calibration methods, we used the SPOTPY libraty (https://spotpy.readthedocs.io/en/latest/). The process-based models are used as baselines to compare the performance of the hybrid models.
 - **Model_DataDriven**: Present the codes to create a Regional rainfall-runoff models using a LSTM network. The data-driven model is used as a baseline to compare the performance of the hybrid models. 
