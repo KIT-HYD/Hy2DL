@@ -6,7 +6,7 @@
 
 Hy<sup>2</sup>DL is a python library to create Hybrid Hydrological Models for rainfall-runoff prediction, by combining DL methods with process based models. Specifically, the DL methods act as dynamic parameterizations for process-based conceptual models.
 
-The idea of the repository is to have 'easy' to understand codes and to introduce new users to hybrid models. Because of this, we decided to sacrifice some code modularity to gain interpretability. All the codes are presented as jupyter notebooks.
+The idea of the repository is to have 'easy' to understand codes and to introduce new users to hybrid models. Because of this, we decided to sacrifice some code modularity to gain interpretability. The main codes are presented as jupyter notebooks.
 
 ## Structure of the repository:
 
