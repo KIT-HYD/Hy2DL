@@ -1,7 +1,5 @@
 # Hy<sup>2</sup>DL: Hybrid Hydrological modeling using Deep Learning methods
 
-[![DOI](https://zenodo.org/badge/684006081.svg)](https://zenodo.org/badge/latestdoi/684006081)
-
 ![HybridModel](LSTM_SHM.png)
 
 Hy<sup>2</sup>DL is a python library to create Hybrid Hydrological Models for rainfall-runoff prediction, by combining DL methods with process based models. Specifically, the DL methods act as dynamic parameterizations for process-based conceptual models.
