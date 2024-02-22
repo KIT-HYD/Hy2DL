@@ -88,4 +88,4 @@ def nse_loss(df_results: Dict[str, pd.DataFrame], average:bool=True)-> np.array:
         else:
             loss.append(np.nan)
                     
-    return np.nanmean(loss) if average else np.asarray(loss)
+    return np.nanmedian(loss) if average else np.asarray(loss)
