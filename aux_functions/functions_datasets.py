@@ -234,7 +234,7 @@ class CAMELS_US():
         file_path = file_path[0]
         
         col_names = ['basin', 'Year', 'Mnth', 'Day', 'QObs', 'flag']
-        df = pd.read_csv(file_path, sep='\s+', header=None, names=col_names)
+        df = pd.read_csv(file_path, sep=r'\s+', header=None, names=col_names)
         df["date"] = pd.to_datetime(df.Year.map(str) + "/" + df.Mnth.map(str) + "/" + df.Day.map(str), format="%Y/%m/%d")
         df = df.set_index("date")
 
