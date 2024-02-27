@@ -160,4 +160,4 @@ cython_debug/
 #.idea/
 
 # Project Folders
-results/*
+results/
