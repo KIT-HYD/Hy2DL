@@ -161,6 +161,3 @@ cython_debug/
 
 # Project Folders
 results/*
-data/basin_id/*
-data/CAMELS_GB/*
-data/CAMELS_US/*
