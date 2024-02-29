@@ -200,7 +200,7 @@ class CAMELS_US():
             fp.readline()
             area = int(fp.readline())
             # load the dataframe from the rest of the stream
-            df = pd.read_csv(fp, sep='\s+')
+            df = pd.read_csv(fp, sep=r'\s+')
             df["date"] = pd.to_datetime(df.Year.map(str) + "/" + df.Mnth.map(str) + "/" + df.Day.map(str),
                                         format="%Y/%m/%d")
             
