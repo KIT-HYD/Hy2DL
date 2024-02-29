@@ -23,11 +23,11 @@ import time
 from typing import List, Dict, Tuple
 
 import spotpy
-#from spotpy.objectivefunctions import rmse as obj_func # objective function used during optimization
-from spotpy.likelihoods import gaussianLikelihoodMeasErrorOut as obj_func
+from spotpy.objectivefunctions import rmse as obj_func # objective function used during optimization
+#from spotpy.likelihoods import gaussianLikelihoodMeasErrorOut as obj_func
 
-from hydrological_models import NonSense as hydrological_model # define which model will be calibrated
-from calibration_methods import dream as calibration_method
+from hydrological_models import bucket as hydrological_model # define which model will be calibrated
+from calibration_methods import sce as calibration_method
 
 
 # Initialize information
@@ -43,7 +43,7 @@ testing_period = ['1997-01-01','2008-12-31']
 path_output = '../results/models/conceptual_models/'
 
 # use when one select the best parameters, depends on the loss function one wants. 
-maximize = True # True for gaussian_likelihood, False of rmse
+maximize = False # True for gaussian_likelihood, False of rmse
 
 # Set seed to have reproducible results
 np.random.seed(42)

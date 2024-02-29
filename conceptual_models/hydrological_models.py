@@ -2,8 +2,58 @@
 import numpy as np
 from typing import List, Dict, Tuple
 
+class BaseConceptualModel():
+    """Abstract base model class, don't use this class for model training!
 
-class SHM():
+    The purpose is to have some common operations that all conceptual models will need. 
+    """
+
+    def __init__(self,):
+        super().__init__()
+
+
+    def run_model(self, input: np.ndarray, param: List[float]) -> Tuple:
+        raise NotImplementedError
+
+
+    def _initialize_information(self, conceptual_inputs: np.ndarray) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
+        """Initialize the structures to store the time evolution of the internal states and the outflow of the conceptual
+        model
+
+        Parameters
+        ----------
+        conceptual_inputs: np.ndarray
+            Inputs of the conceptual model (dynamic forcings)
+
+        Returns
+        -------
+        Tuple[np.ndarray, Dict[str, np.ndarray]]
+            - q_out: np.ndarray
+                Array to store the outputs of the conceptual model
+            - states: Dict[str, np.ndarray]
+                Dictionary to store the time evolution of the internal states (buckets) of the conceptual model
+        """
+
+        states = {}
+        # initialize dictionary to store the evolution of the states
+        for name, _ in self._initial_states.items():
+            states[name] = np.zeros((conceptual_inputs.shape[0], 1))
+
+        # initialize vectors to store the evolution of the outputs
+        out = np.zeros((conceptual_inputs.shape[0], 1))
+
+        return out, states
+    
+    @property
+    def _initial_states(self)-> Dict[str, float]:
+        raise NotImplementedError
+
+    @property
+    def _parameter_ranges(self) -> Dict[str, List[float]]:
+        raise NotImplementedError
+
+
+class SHM(BaseConceptualModel):
     """Slightly modified version of the SHM model [#]_.
     
     References
@@ -14,6 +64,7 @@ class SHM():
     """
     
     def __init__(self):
+        super(SHM, self).__init__()
         self.name = 'SHM'
     
     def run_model(self, input: np.ndarray, param: List[float]) -> Tuple:
@@ -108,34 +159,6 @@ class SHM():
             out[i] = qf_out + qi_out + qb_out  # [mm]
 
         return out, states
-        
-    def _initialize_information(self, conceptual_inputs: np.ndarray) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
-        """Initialize the structures to store the time evolution of the internal states and the outflow of the conceptual
-        model
-
-        Parameters
-        ----------
-        conceptual_inputs: np.ndarray
-            Inputs of the conceptual model (dynamic forcings)
-
-        Returns
-        -------
-        Tuple[np.ndarray, Dict[str, np.ndarray]]
-            - q_out: np.ndarray
-                Array to store the outputs of the conceptual model
-            - states: Dict[str, np.ndarray]
-                Dictionary to store the time evolution of the internal states (buckets) of the conceptual model
-        """
-
-        states = {}
-        # initialize dictionary to store the evolution of the states
-        for name, _ in self._initial_states.items():
-            states[name] = np.zeros((conceptual_inputs.shape[0], 1))
-
-        # initialize vectors to store the evolution of the outputs
-        out = np.zeros((conceptual_inputs.shape[0], 1))
-
-        return out, states
  
     @property
     def _initial_states(self) -> Dict[str, float]:
@@ -161,12 +184,12 @@ class SHM():
             }
     
 
-class bucket():
+class bucket(BaseConceptualModel):
     """Model with a single linear reservoir
-    
     """
     
     def __init__(self):
+        super(bucket, self).__init__()
         self.name = 'bucket'
     
     def run_model(self, input: np.ndarray, param: List[float]) -> Tuple:
@@ -208,34 +231,6 @@ class bucket():
             out[i] = qi_out  # [mm]
 
         return out, states
-        
-    def _initialize_information(self, conceptual_inputs: np.ndarray) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
-        """Initialize the structures to store the time evolution of the internal states and the outflow of the conceptual
-        model
-
-        Parameters
-        ----------
-        conceptual_inputs: np.ndarray
-            Inputs of the conceptual model (dynamic forcings)
-
-        Returns
-        -------
-        Tuple[np.ndarray, Dict[str, np.ndarray]]
-            - q_out: np.ndarray
-                Array to store the outputs of the conceptual model
-            - states: Dict[str, np.ndarray]
-                Dictionary to store the time evolution of the internal states (buckets) of the conceptual model
-        """
-
-        states = {}
-        # initialize dictionary to store the evolution of the states
-        for name, _ in self._initial_states.items():
-            states[name] = np.zeros((conceptual_inputs.shape[0], 1))
-
-        # initialize vectors to store the evolution of the outputs
-        out = np.zeros((conceptual_inputs.shape[0], 1))
-
-        return out, states
  
     @property
     def _initial_states(self) -> Dict[str, float]:
@@ -251,17 +246,12 @@ class bucket():
             }
 
 
-class NonSense():
-    """Modified version of the SHM model [#]_ to have a 'nonsense' hydrological model.
-    
-    References
-    ----------
-    .. [#] Ehret, U., van Pruijssen, R., Bortoli, M., Loritz, R.,  Azmi, E. and Zehe, E: Adaptive clustering: reducing 
-        the computational costs of distributed (hydrological) modelling by exploiting time-variable similarity among 
-        model elements. HESS, 24, 4389-4411, doi: 10.5194/hess-24-4389-2020, 2020
+class NonSense(BaseConceptualModel):
+    """Hydrological model with unfeasible structure.
     """
     
     def __init__(self):
+        super(NonSense, self).__init__()
         self.name = 'NonSense'
     
     def run_model(self, input: np.ndarray, param: List[float]) -> Tuple:
@@ -342,34 +332,6 @@ class NonSense():
 
             # total outflow
             out[i] = qu_out  # [mm]
-
-        return out, states
-        
-    def _initialize_information(self, conceptual_inputs: np.ndarray) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
-        """Initialize the structures to store the time evolution of the internal states and the outflow of the conceptual
-        model
-
-        Parameters
-        ----------
-        conceptual_inputs: np.ndarray
-            Inputs of the conceptual model (dynamic forcings)
-
-        Returns
-        -------
-        Tuple[np.ndarray, Dict[str, np.ndarray]]
-            - q_out: np.ndarray
-                Array to store the outputs of the conceptual model
-            - states: Dict[str, np.ndarray]
-                Dictionary to store the time evolution of the internal states (buckets) of the conceptual model
-        """
-
-        states = {}
-        # initialize dictionary to store the evolution of the states
-        for name, _ in self._initial_states.items():
-            states[name] = np.zeros((conceptual_inputs.shape[0], 1))
-
-        # initialize vectors to store the evolution of the outputs
-        out = np.zeros((conceptual_inputs.shape[0], 1))
 
         return out, states
  
