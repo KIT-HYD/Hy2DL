@@ -165,6 +165,7 @@ data/CAMELS_GB/*
 data/CAMELS_US/*
 Hy2DL/results/*
 !Hy2DL/results/Results_Analysis.ipynb
+Hy2DL/experiments/Test_NH.ipynb
 neuralhydrology
 gcp_connection.txt
 
