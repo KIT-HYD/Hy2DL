@@ -160,6 +160,9 @@ cython_debug/
 #.idea/
 
 # Project Folders
+data/basin_id/*
+data/CAMELS_GB/*
+data/CAMELS_US/*
 Hy2DL/results/*
 !Hy2DL/results/Results_Analysis.ipynb
 gcp_connection.txt
