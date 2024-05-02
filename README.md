@@ -1,4 +1,5 @@
 # Hy<sup>2</sup>DL: Hybrid Hydrological modeling using Deep Learning methods
+[![DOI](https://zenodo.org/badge/684006081.svg)](https://zenodo.org/doi/10.5281/zenodo.8289020)
 
 ![HybridModel](LSTM_SHM.png)
 
