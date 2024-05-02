@@ -121,6 +121,7 @@ class CARAVAN(BaseDataset):
         for column in df_attributes.columns:
             if df_attributes[column].dtype not in ['float64', 'int64']:
                 df_attributes[column], _ = pd.factorize(df_attributes[column], sort=True) 
+                
 
          # Filter attributes and basins of interest
         df_attributes = df_attributes.loc[self.entities_ids, self.static_input]
@@ -147,7 +148,7 @@ class CARAVAN(BaseDataset):
         basin = catch_id
 
         # Get the subdataset name from the basin string.
-        subdataset_name = basin.split('_')[0]
+        subdataset_name = basin.split('_')[0].lower()
         filepath = data_dir / "timeseries" / "csv" / subdataset_name / f"{basin}.csv"
         df = pd.read_csv(filepath, parse_dates=['date'])
         df = df.set_index('date')
