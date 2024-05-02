@@ -152,7 +152,7 @@ class CARAVAN(BaseDataset):
         df = pd.read_csv(filepath, parse_dates=['date'])
         df = df.set_index('date')
 
-        # Add other variables if required - Comment out this section in main branch
+        # Add other variables if required - Comment out this section in main branch (bwcluster access)
         # Create a new column "qobs_lead" with discharge values shifted by 7 time units
         #df['qobs_lead'] = df['qobs'].shift(-7)
 
