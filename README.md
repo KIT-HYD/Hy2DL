@@ -28,7 +28,8 @@ This code is part of our study
 Acuña Espinoza, E., Loritz, R., Álvarez Chaves, M., Bäuerle, N., and Ehret, U.: To Bucket or not to Bucket? Analyzing the performance and interpretability of hybrid hydrological models with dynamic parameterization, EGUsphere [preprint], https://doi.org/10.5194/egusphere-2023-1980, 2023.
 ```
 
-If you want to reproduce the experiments of this paper, run the scripts: Hybrid_LSTM_SHM.ipynb, Hybrid_LSTM_Bucket.ipynb, Hybrid_LSTM_NonSense.ipynb, LSTM_CAMELS_GB.ipynb and LSTM_CAMELS_US.ipynb located in the path LSTM_CAMELS_US.ipynb.
+- If you want to reproduce the experiments of this paper, run the scripts: Hybrid_LSTM_SHM.ipynb, Hybrid_LSTM_Bucket.ipynb, Hybrid_LSTM_NonSense.ipynb, LSTM_CAMELS_GB.ipynb and LSTM_CAMELS_US.ipynb located in the path Hy2DL/experiments/.
+- If you want to reproduce the figures without re-running the experiments, copy the files located in the result folder of the repository https://zenodo.org/records/11103634 and paste them into Hy2DL/results/. Then run the notebook Results_Analysis.ipynb.
 
 ## Authors:
  - Eduardo Acuña Espinoza (eduardo.espinoza@kit.edu)
