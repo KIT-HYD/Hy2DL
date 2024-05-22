@@ -1,9 +1,12 @@
 from typing import Dict, Union
+import math
+from collections import defaultdict
 import torch
 import torch.nn as nn
+from cudalstm import CudaLSTM
 
-class CudaLSTM(nn.Module):
-    """LSTM network. 
+class customLSTM(nn.Module):
+    """LSTM cell
 
     Parameters
     ----------
@@ -12,22 +15,22 @@ class CudaLSTM(nn.Module):
 
     """
     def __init__(self, hyperparameters: Dict[str, Union[int, float, str, dict]]):
+
+        # Run the __init__ method of CudaLSTM class
         super().__init__()
-        self.input_size_lstm = hyperparameters['input_size_lstm']
-        self.hidden_size = hyperparameters['hidden_size']
+              
         self.num_layers = hyperparameters['no_of_layers']
         
-        self.lstm = nn.LSTM(input_size = self.input_size_lstm, 
-                            hidden_size = self.hidden_size, 
-                            batch_first = True,
-                            num_layers = self.num_layers)
+        self.cell = _LSTMCell(input_size=hyperparameters['input_size_lstm'],
+                                hidden_size=hyperparameters['hidden_size'],
+                                initial_forget_bias=hyperparameters['set_forget_gate'])
 
-        
+
         self.dropout = torch.nn.Dropout(hyperparameters['drop_out_rate'])
         self.linear = nn.Linear(in_features=self.hidden_size, out_features=1)
            
     def forward(self, x: torch.Tensor):
-        """Forward pass of lstm networj 
+        """Forward pass of lstm network 
 
         Parameters
         ----------
@@ -46,10 +49,89 @@ class CudaLSTM(nn.Module):
                          device=x.device)
         c0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, requires_grad=True, dtype=torch.float32,
                          device=x.device)
-        
-        out, (hn_1, cn_1) = self.lstm(x, (h0, c0))
-        out = out[:,-1,:] # sequence to one
-        out = self.dropout(out)
-        out = self.linear(out)
 
-        return {'y_hat': out}
+        hx = (h0, c0)
+
+        output = defaultdict(list)
+        for x_t in x:
+            h0, c0 = hx
+            cell_output = self.cell(x_t=x_t, h_0=h0, c_0=c0)
+
+            h_x = (cell_output['h_n'], cell_output['c_n'])
+
+            for key, cell_out in cell_output.items():
+                output[key].append(cell_out)
+
+        # stack to [batch size, sequence length, hidden size]
+        pred = {key: torch.stack(val, 1) for key, val in output.items()}
+        pred.update(self.head(self.dropout(pred['h_n'])))
+        return pred
+    
+    def copy_weights(self, optimized_lstm: CudaLSTM):
+        """Copy weights from a `CudaLSTM` or `EmbCudaLSTM` into this model class
+
+        Parameters
+        ----------
+        optimized_lstm : Union[CudaLSTM, EmbCudaLSTM]
+            Model instance of a `CudaLSTM` (neuralhydrology.modelzoo.cudalstm) or `EmbCudaLSTM`
+            (neuralhydrology.modelzoo.embcudalstm).
+            
+        Raises
+        ------
+        RuntimeError
+            If `optimized_lstm` is an `EmbCudaLSTM` but this model instance was not created with an embedding network.
+        """
+
+        # copy lstm cell weights
+        self.cell.copy_weights(optimized_lstm.lstm, layer=0)
+
+        # copy weights of head
+        # self.head.load_state_dict(optimized_lstm.head.state_dict())
+    
+class _LSTMCell(nn.Module):
+
+    def __init__(self, input_size: int, hidden_size: int, initial_forget_bias: float = 0.0):
+        super(_LSTMCell, self).__init__()
+
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.initial_forget_bias = initial_forget_bias
+
+        self.w_hh = nn.Parameter(torch.FloatTensor(4 * hidden_size, hidden_size))
+        self.w_ih = nn.Parameter(torch.FloatTensor(4 * hidden_size, input_size))
+
+        self.b_hh = nn.Parameter(torch.FloatTensor(4 * hidden_size))
+        self.b_ih = nn.Parameter(torch.FloatTensor(4 * hidden_size))
+
+        # self._reset_parameters()
+
+    def _reset_parameters(self):
+        """Special initialization of certain model weights."""
+        stdv = math.sqrt(3 / self.hidden_size)
+        for weight in self.parameters():
+            if len(weight.shape) > 1:
+                weight.data.uniform_(-stdv, stdv)
+            else:
+                nn.init.zeros_(weight)
+
+        if self.initial_forget_bias != 0:
+            self.b_hh.data[self.hidden_size:2 * self.hidden_size] = self.initial_forget_bias
+
+    def forward(self, x_t: torch.Tensor, h_0: torch.Tensor, c_0: torch.Tensor) -> Dict[str, torch.Tensor]:
+        gates = h_0 @ self.w_hh.T + self.b_hh + x_t @ self.w_ih.T + self.b_ih
+        i, f, g, o = gates.chunk(4, 1)
+
+        c_1 = c_0 * torch.sigmoid(f) + torch.sigmoid(i) * torch.tanh(g)
+        h_1 = torch.sigmoid(o) * torch.tanh(c_1)
+
+        return {'h_n': h_1, 'c_n': c_1, 'i': i, 'f': f, 'g': g, 'o': o}
+
+    def copy_weights(self, cudnnlstm: nn.Module, layer: int):
+
+        assert self.hidden_size == cudnnlstm.hidden_size
+        assert self.input_size == cudnnlstm.input_size
+
+        self.w_hh.data = getattr(cudnnlstm, f"weight_hh_l{layer}").data
+        self.w_ih.data = getattr(cudnnlstm, f"weight_ih_l{layer}").data
+        self.b_hh.data = getattr(cudnnlstm, f"bias_hh_l{layer}").data
+        self.b_ih.data = getattr(cudnnlstm, f"bias_ih_l{layer}").data
