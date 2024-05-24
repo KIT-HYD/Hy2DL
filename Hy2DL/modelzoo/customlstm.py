@@ -62,7 +62,7 @@ class customLSTM(nn.Module):
         # stack to [batch size, sequence length, hidden size]
         pred = {key: torch.stack(val, 1) for key, val in output.items()}
         pred['h_n'] = self.dropout(pred['h_n'])
-        pred['h_n'] = self.head(pred['h_n'])
+        pred['h_n'] = self.linear(pred['h_n'])
         return pred
     
     def copy_weights(self, optimized_lstm: CudaLSTM):
