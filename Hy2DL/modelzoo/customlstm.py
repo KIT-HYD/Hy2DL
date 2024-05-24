@@ -20,14 +20,13 @@ class customLSTM(nn.Module):
         super().__init__()
               
         self.num_layers = hyperparameters['no_of_layers']
-        
-        self.cell = _LSTMCell(input_size=hyperparameters['input_size_lstm'],
-                                hidden_size=hyperparameters['hidden_size'],
-                                initial_forget_bias=hyperparameters['set_forget_gate'])
-
+        self._hidden_size = hyperparameters['hidden_size']
+        self._input_size = hyperparameters['input_size_lstm']
+        self.cell = _LSTMCell(input_size=self._input_size,
+                                hidden_size=self._hidden_size)
 
         self.dropout = torch.nn.Dropout(hyperparameters['drop_out_rate'])
-        self.linear = nn.Linear(in_features=self.hidden_size, out_features=1)
+        self.linear = nn.Linear(in_features=self._hidden_size, out_features=1)
            
     def forward(self, x: torch.Tensor):
         """Forward pass of lstm network 
@@ -44,11 +43,9 @@ class customLSTM(nn.Module):
         """
         
         # initialize hidden state with zeros
-        batch_size = x.shape[0]
-        h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, requires_grad=True, dtype=torch.float32, 
-                         device=x.device)
-        c0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, requires_grad=True, dtype=torch.float32,
-                         device=x.device)
+        batch_size = x.shape[1]
+        h0 = x.data.new(batch_size, self._hidden_size).zero_()
+        c0 = x.data.new(batch_size, self._hidden_size).zero_()
 
         hx = (h0, c0)
 
@@ -64,7 +61,8 @@ class customLSTM(nn.Module):
 
         # stack to [batch size, sequence length, hidden size]
         pred = {key: torch.stack(val, 1) for key, val in output.items()}
-        pred.update(self.head(self.dropout(pred['h_n'])))
+        pred['h_n'] = self.dropout(pred['h_n'])
+        pred['h_n'] = self.head(pred['h_n'])
         return pred
     
     def copy_weights(self, optimized_lstm: CudaLSTM):
@@ -85,8 +83,8 @@ class customLSTM(nn.Module):
         # copy lstm cell weights
         self.cell.copy_weights(optimized_lstm.lstm, layer=0)
 
-        # copy weights of head
-        # self.head.load_state_dict(optimized_lstm.head.state_dict())
+        # copy weights of linear layer
+        self.linear.load_state_dict(optimized_lstm.linear.state_dict())
     
 class _LSTMCell(nn.Module):
 
