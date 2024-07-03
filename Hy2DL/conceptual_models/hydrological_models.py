@@ -1,20 +1,19 @@
 #Import necessary packages
 import numpy as np
+import pandas as pd
 from typing import List, Dict, Tuple
+import scipy
 
 class BaseConceptualModel():
     """Abstract base model class, don't use this class for model training!
 
     The purpose is to have some common operations that all conceptual models will need. 
     """
-
     def __init__(self,):
         super().__init__()
 
-
     def run_model(self, input: np.ndarray, param: List[float]) -> Tuple:
         raise NotImplementedError
-
 
     def _initialize_information(self, conceptual_inputs: np.ndarray) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
         """Initialize the structures to store the time evolution of the internal states and the outflow of the conceptual
@@ -33,7 +32,6 @@ class BaseConceptualModel():
             - states: Dict[str, np.ndarray]
                 Dictionary to store the time evolution of the internal states (buckets) of the conceptual model
         """
-
         states = {}
         # initialize dictionary to store the evolution of the states
         for name, _ in self._initial_states.items():
@@ -62,7 +60,6 @@ class SHM(BaseConceptualModel):
         the computational costs of distributed (hydrological) modelling by exploiting time-variable similarity among 
         model elements. HESS, 24, 4389-4411, doi: 10.5194/hess-24-4389-2020, 2020
     """
-    
     def __init__(self):
         super(SHM, self).__init__()
         self.name = 'SHM'
@@ -173,21 +170,20 @@ class SHM(BaseConceptualModel):
     @property
     def parameter_ranges(self) -> Dict[str, List[float]]:
         return {
-            'dd': [0.0, 10.0],
-            'f_thr'  : [10.0,60.0],
-            'sumax'  : [20.0,700.0],
-            'beta'  : [1.0, 6.0],
-            'perc'  : [0.0, 1.0],
-            'kf'  : [1.0, 20.0],
-            'ki'  : [1.0, 100.0],
-            'kb'  : [10.0, 1000.0]
+            'dd': (0.0, 10.0),
+            'f_thr'  : (10.0,60.0),
+            'sumax'  : (20.0,700.0),
+            'beta'  : (1.0, 6.0),
+            'perc'  : (0.0, 1.0),
+            'kf'  : (1.0, 20.0),
+            'ki'  : (1.0, 100.0),
+            'kb'  : (10.0, 1000.0)
             }
     
 
 class bucket(BaseConceptualModel):
     """Model with a single linear reservoir
     """
-    
     def __init__(self):
         super(bucket, self).__init__()
         self.name = 'bucket'
@@ -241,15 +237,14 @@ class bucket(BaseConceptualModel):
     @property
     def parameter_ranges(self) -> Dict[str, List[float]]:
         return {
-            'aux_ET': [0.0, 1.5],
-            'ki'  : [1.0,500.0]
+            'aux_ET': (0.0, 1.5),
+            'ki'  : (1.0,500.0)
             }
 
 
 class NonSense(BaseConceptualModel):
     """Hydrological model with unfeasible structure.
     """
-    
     def __init__(self):
         super(NonSense, self).__init__()
         self.name = 'NonSense'
@@ -347,9 +342,214 @@ class NonSense(BaseConceptualModel):
     @property
     def parameter_ranges(self) -> Dict[str, List[float]]:
         return {
-            'dd': [0.0, 10.0],
-            'sumax'  : [20.0,700.0],
-            'beta'  : [1.0, 6.0],
-            'ki'  : [1.0, 100.0],
-            'kb'  : [10.0, 1000.0]
+            'dd': (0.0, 10.0),
+            'sumax'  : (20.0,700.0),
+            'beta'  : (1.0, 6.0),
+            'ki'  : (1.0, 100.0),
+            'kb'  : (10.0, 1000.0)
+            }
+    
+
+class HBV(BaseConceptualModel):
+    """HBV model. 
+    
+    Implementation based on Feng et al. [1]_ and Seibert [2]_.
+
+    References
+    ----------
+    .. [1] Feng, D., Liu, J., Lawson, K., & Shen, C. (2022). Differentiable, learnable, regionalized process-based 
+        models with multiphysical outputs can approach state-of-the-art hydrologic prediction accuracy. Water Resources 
+        Research, 58, e2022WR032404. https://doi.org/10.1029/2022WR032404
+    .. [2] Seibert, J. (2005) HBV Light Version 2. User’s Manual. Department of Physical Geography and Quaternary 
+        Geology, Stockholm University, Stockholm
+    """
+    def __init__(self):
+        super(HBV, self).__init__()
+        self.name = 'HBV'
+    
+    def run_model(self, input: np.ndarray, param: List[float]) -> Tuple:
+        """Run the model
+        
+        Parameters
+        ----------
+        input : np.ndarray
+            Inputs for the conceptual model
+        param : List[float]
+            Parameters of the model
+        
+        Returns
+        -------
+        Tuple[np.ndarray, np.ndarray]
+            - out: np.ndarray
+                outputs of the conceptual model
+            - states: np.ndarray
+                time evolution of the internal states (buckets) of the conceptual model   
+        """
+        # initialize structures to store the information
+        out, states = self._initialize_information(conceptual_inputs=input)
+        
+        # read parameters
+        BETA, FC, K0, K1, K2, LP, PERC, UZL, TT, CFMAX, CFR, CWH, alpha, beta  = param 
+        
+        # Storages
+        SNOWPACK =  self._initial_states['SNOWPACK']
+        MELTWATER =  self._initial_states['MELTWATER']
+        SM =  self._initial_states['SM']
+        SUZ =  self._initial_states['SUZ']
+        SLZ =  self._initial_states['SLZ']
+        
+        # run model for each timestep
+        for i, (p, pet, temp) in enumerate(input):
+
+            liquid_p, snow = (p, 0) if temp > TT else (0, p)
+
+            # Snow module -----------------------------------------------------------------------------------------
+            SNOWPACK = SNOWPACK + snow
+            melt = CFMAX * (temp - TT)
+            melt = max(melt, 0.0)
+            melt = min(melt, SNOWPACK)
+            MELTWATER = MELTWATER + melt
+            SNOWPACK = SNOWPACK - melt
+            refreezing = CFR* CFMAX * (TT -  temp)
+            refreezing = max(refreezing, 0.0)
+            refreezing = min(refreezing, MELTWATER)
+            SNOWPACK = SNOWPACK + refreezing
+            MELTWATER = MELTWATER - refreezing
+            tosoil = MELTWATER - (CWH* SNOWPACK)
+            tosoil = max(tosoil, 0.0)
+            MELTWATER = MELTWATER - tosoil
+
+            # Soil and evaporation ---------------------------------------------------------------------------------
+            soil_wetness = (SM / FC) ** BETA
+            soil_wetness = min(max(soil_wetness, 0.0), 1.0)
+            recharge = (liquid_p + tosoil) * soil_wetness
+
+            SM = SM + liquid_p + tosoil - recharge
+            excess = SM - FC
+            excess = max(excess,0.0)
+            SM = SM - excess
+            evapfactor = SM / (LP * FC)
+            evapfactor  = min(max(evapfactor, 0.0), 1.0)
+            ETact = pet * evapfactor
+            ETact = min(SM, ETact)
+            SM = max(SM - ETact, 0.0)
+            
+            # Groundwater boxes -------------------------------------------------------------------------------------
+            SUZ = SUZ + recharge + excess
+            PERCact = min(SUZ, PERC)
+            SUZ = SUZ - PERCact
+            Q0 = K0 * max(SUZ-UZL, 0.0)
+            SUZ = SUZ - Q0
+            Q1 = K1 * SUZ
+            SUZ = SUZ - Q1
+            SLZ = SLZ + PERCact
+            Q2 = K2 * SLZ
+            SLZ = SLZ - Q2       
+            
+            # Store time evolution of the internal states
+            states['SNOWPACK'][i] = SNOWPACK
+            states['MELTWATER'][i] = MELTWATER
+            states['SM'][i] = SM
+            states['SUZ'][i] = SUZ
+            states['SLZ'][i] = SLZ
+            
+            # total outflow
+            out[i] = Q0 + Q1 + Q2 # [mm]
+        
+        # routing method
+        UH =  self._gamma_routing(alpha = alpha, beta = beta, uh_len=15)
+        out = self._uh_conv(discharge = out, unit_hydrograph=UH).reshape((-1, 1))
+        
+        return out, states
+ 
+    def _UH_gamma(self, a: float, b: float, lenF: int=10):
+        aa = np.array([a]*lenF)
+        aa = np.maximum(aa, 0.0)
+
+        theta = np.array([b]*lenF)
+        theta = np.maximum(theta, 0.0)
+
+        t = np.arange(0.5, 0.5 + lenF, 1)
+
+        denom = (np.exp(scipy.special.loggamma(aa)))*(theta**aa)
+        mid= t**(aa-1)
+        right=np.exp(-t/theta)
+        w = 1/denom*mid*right
+        w = w/w.sum(0) # scale to 1 for each UH
+
+        return w
+    
+    def _gamma_routing(self, alpha:float, beta:float, uh_len:int = 10):
+        """Unit hydrograph based on gamma function.
+
+        Parameters
+        ----------
+        alpha: float
+            Shape parameter of the Gamma distribution.
+        beta: float
+            Scale parameter of the Gamma distribution.
+        uh_len: int
+            Number of timesteps the unitary hydrograph will have.
+
+        Returns
+        -------
+        uh : torch.Tensor
+            Unit hydrograph
+        """
+        x = np.arange(0.5, 0.5+uh_len, 1)
+        coeff = 1 / (beta**alpha * np.exp(scipy.special.loggamma(alpha)))
+        gamma_pdf = coeff * (x**(alpha - 1)) * np.exp(-x / beta)
+        # Normalize data so the sum of the pdf equals 1
+        uh = gamma_pdf/np.sum(gamma_pdf)
+        return uh
+
+        
+    def _uh_conv(self, discharge: np.ndarray, unit_hydrograph: np.ndarray):
+        """Unitary hydrograph routing.
+
+        Parameters
+        ----------
+        discharge: 
+            Discharge series
+        unit_hydrograph: 
+            Unit hydrograph
+
+        Returns
+        -------
+        y: 
+            Routed discharge
+
+        """
+        padding_size = unit_hydrograph.shape[0] - 1
+        y = np.convolve(np.array(discharge).flatten(), unit_hydrograph, mode='full')
+        return y[0:-padding_size]
+
+    
+    @property
+    def _initial_states(self) -> Dict[str, float]:
+        return {
+            'SNOWPACK' : 0.001,
+            'MELTWATER' : 0.001,
+            'SM' : 0.001,
+            'SUZ' : 0.001,
+            'SLZ' : 0.001
+            }
+
+    @property
+    def parameter_ranges(self) -> Dict[str, List[float]]:
+        return {
+            'BETA': (1.0, 6.0),
+            'FC'  : (50.0, 1000.0),
+            'K0'  : (0.05, 0.9),
+            'K1'  : (0.01, 0.5),
+            'K2'  : (0.001, 0.2),
+            'LP'  : (0.2, 1.0),
+            'PERC' : (0.0, 10.0),
+            'UZL' : (0.0, 100.0),
+            'TT'  : (-2.5 , 2.5),
+            'CFMAX' : (0.5, 10.0),
+            'CFR' : (0.0, 0.1),
+            'CWH' : (0.0, 0.2),
+            'alpha' : (0.0, 2.9),
+            'beta' : (0.0, 6.5)
             }

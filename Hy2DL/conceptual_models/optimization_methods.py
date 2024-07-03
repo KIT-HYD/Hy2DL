@@ -56,7 +56,7 @@ class sce():
         self.pcento = pcento
         self.max_loop_inc = max_loop_inc
 
-    def run_calibration(self, calibration_obj, path_output:str, file_id:str):
+    def run_calibration(self, calibration_obj, path_output:str):
         """ Run calibration method
         
         Parameters
@@ -69,7 +69,7 @@ class sce():
             id of the object that is being calibrated (e.g basin_id)
         """
 
-        file_name = path_output + calibration_obj.model.name + '_'  + self.name + '_' + str(file_id)
+        file_name = path_output + calibration_obj.model.name + '_'  + self.name + '_' + calibration_obj.basin_id
         
         sampler=spotpy.algorithms.sceua(calibration_obj, dbname=file_name, dbformat='csv', save_sim=False)
         sampler.sample(repetitions=self.repetitions, 
@@ -127,7 +127,7 @@ class dream():
         self.acceptance_test_option = acceptance_test_option
 
 
-    def run_calibration(self, calibration_obj, path_output:str, file_id:str):
+    def run_calibration(self, calibration_obj, path_output:str):
         """ Run calibration method
         
         Parameters
@@ -140,7 +140,7 @@ class dream():
             id of the object that is being calibrated (e.g basin_id)
         """
 
-        file_name = path_output + calibration_obj.model.name + '_'  + self.name + '_' + str(file_id)
+        file_name = path_output + calibration_obj.model.name + '_'  + self.name + '_' + calibration_obj.basin_id
 
         sampler = spotpy.algorithms.dream(calibration_obj, dbname=file_name, dbformat="csv", save_sim=False)
         sampler = sampler.sample(repetitions=self.repetitions,
@@ -212,7 +212,7 @@ class rope():
         self.NDIR = NDIR
 
 
-    def run_calibration(self, calibration_obj, path_output:str, file_id:str):
+    def run_calibration(self, calibration_obj, path_output:str):
         """ Run calibration method
         
         Parameters
@@ -225,7 +225,7 @@ class rope():
             id of the object that is being calibrated (e.g basin_id)
         """
 
-        file_name = path_output + calibration_obj.model.name + '_'  + self.name + '_' + str(file_id)
+        file_name = path_output + calibration_obj.model.name + '_'  + self.name + '_' + calibration_obj.basin_id
 
         sampler = spotpy.algorithms.rope(calibration_obj, dbname=file_name, dbformat="csv", save_sim=False)
         sampler = sampler.sample(repetitions=self.repetitions,
