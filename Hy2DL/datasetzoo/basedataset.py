@@ -13,45 +13,44 @@ class BaseDataset(Dataset):
     This class is inherited by the other subclasses (e.g. CAMELS_US, CAMELS_GB) to read and process the data. The class
     contains all the common operations to that needs to be done independently which database is being used.
     
-    This class and its methods were taken from Neural Hydrology [#]_ and adapted for our specific case. 
+    This class and its methods were taken from Neural Hydrology [1]_ and adapted for our specific case. 
         
     Parameters
     ----------
     dynamic_input : List[str]
         name of variables used as dynamic series input in the lstm
-    target: List[str]
+    target : List[str]
         target variable(s)
-    sequence_length: int
+    sequence_length : int
         sequence length used for the model
-    time_period: List[str]
+    time_period : List[str]
         initial and final date (e.g. ['1987-10-01','1999-09-30']) of the time period of interest 
-    path_data: str
+    path_data : str
         path to the folder were the data is stored
-    path_entities: str
+    path_entities : str
         path to a txt file that contain the id of the entities (e.g. catchment`s ids) that will be analyzed
-    entity: str
+    entity : str
         id of the entities (e.g. catchment`s id) that will be analyzed. Alternative option to specifying a
         path_entities.
-    path_addional features: Optional[str] = None
+    path_addional features : Optional[str] = None
         Optional parameter. Allows the option to add any arbitrary data that is not included in the standard data sets.
         Path to a pickle file (or list of paths for multiple files), containing a dictionary with each key corresponding 
         to one basin id and the value is a date-time indexed pandas DataFrame.      
-    predict_last_n: Optional[int] = 1
+    predict_last_n : Optional[int] = 1
         number of timesteps (e.g. days) used to calculate the loss
     static_input : Optional[List[str]] = []
         name of static inputs used as input in the lstm (e.g. catchment attributes)
-    conceptual_input: Optional[List[str]] = []
+    conceptual_input : Optional[List[str]] = []
         Optional parameter. We need this when we use hybrid models. Name of variables used as dynamic series input in 
         the conceptual model
-    check_Nan: : Optional[bool] = True
+    check_NaN : Optional[bool] = True
         Boolean that indicate if one should check of NaN values while processing the data
     
     References
     ----------
-    .. [#] F. Kratzert, M. Gauch, G. Nearing and D. Klotz: NeuralHydrology -- A Python library for Deep Learning
+    .. [1] F. Kratzert, M. Gauch, G. Nearing and D. Klotz: NeuralHydrology -- A Python library for Deep Learning
         research in hydrology. Journal of Open Source Software, 7, 4050, doi: 10.21105/joss.04050, 2022 
     """
-
     #Function to initialize the data
     def __init__(self, 
                  dynamic_input: List[str],
@@ -201,11 +200,10 @@ class BaseDataset(Dataset):
 
         Returns
         -------
-        additional_features: Dict[str, pd.DataFrame]
+        additional_features : Dict[str, pd.DataFrame]
             Dictionary where each key is a basin and each value is a date-time indexed pandas DataFrame with the 
             additional features
         """
-        
         with open(self.path_additional_features, "rb") as file:
             additional_features = pickle.load(file)
         return additional_features
@@ -270,7 +268,7 @@ def validate_samples(x: np.ndarray, y: np.ndarray, attributes: np.ndarray, seq_l
     
     """Checks for invalid samples due to NaN or insufficient sequence length.
 
-    This function was taken from Neural Hydrology [#]_ and adapted for our specific case. 
+    This function was taken from Neural Hydrology [1]_ and adapted for our specific case. 
         
     Parameters
     ----------
@@ -294,10 +292,9 @@ def validate_samples(x: np.ndarray, y: np.ndarray, attributes: np.ndarray, seq_l
 
     References
     ----------
-    .. [#] F. Kratzert, M. Gauch, G. Nearing and D. Klotz: NeuralHydrology -- A Python library for Deep Learning
+    .. [1] F. Kratzert, M. Gauch, G. Nearing and D. Klotz: NeuralHydrology -- A Python library for Deep Learning
         research in hydrology. Journal of Open Source Software, 7, 4050, doi: 10.21105/joss.04050, 2022 
     """
-
     # Initialize vector to store the flag. 1 means valid sample for training
     flag = np.ones(x.shape[0])
 
