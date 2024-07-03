@@ -1,11 +1,10 @@
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Union, Optional, Tuple
 import torch
 from baseconceptualmodel import BaseConceptualModel
 
 
 class NonSense(BaseConceptualModel):
-    """
-    The Nonsense [#] model
+    """Nonsense model [1]_.
 
     Hydrological model with physically non-sensical constraints: water enters the model through the
     snow reservoir, then moves through the baseflow, interflow and finally unsaturated zone reservoirs,
@@ -15,18 +14,18 @@ class NonSense(BaseConceptualModel):
     ----------
     n_models : int
         Number of model entities that will be run at the same time (in parallel)
-    parameter_type : Dict[str, str]
-        Inidicates if the model parameters will be static or dynamic in time
+    parameter_type : List[str]
+        List to specify which parameters of the conceptual model will be dynamic.
 
     References
-    .. [#] Acuña Espinoza, E., Loritz, R., Álvarez Chaves, M., Bäuerle, N. & Ehret, U. (2023). To Bucket or not to Bucket?
-    Analyzing the performance and interpretability of hybrid hydrological models with dynamic parameterization. EGUsphere,
-    1–22. https://doi.org/10.5194/egusphere-2023-1980
+    ----------
+    .. [1] Acuña Espinoza, E., Loritz, R., Álvarez Chaves, M., Bäuerle, N., and Ehret, U.: To Bucket or not to Bucket? 
+    Analyzing the performance and interpretability of hybrid hydrological models with dynamic parameterization, 
+    Hydrology and Earth System Sciences, 28, 2705–2719, https://doi.org/10.5194/hess-28-2705-2024, 2024.
     """
-
-    def __init__(self, n_models: int = 1, parameter_type: Dict[str, str] = {}):
+    def __init__(self, n_models: int = 1, parameter_type:List[str]=None):
         super(NonSense, self).__init__()
-        self.n_models = n_models
+        self.n_conceptual_models = n_models
         self.parameter_type = self._map_parameter_type(parameter_type=parameter_type)
         self.output_size = 1
 
@@ -69,7 +68,6 @@ class NonSense(BaseConceptualModel):
             - last_states: Dict[str, torch.Tensor]
                 Internal states of the conceptual model for the last time-step
         """
-
         # initialize structures to store the information
         states, out = self._initialize_information(conceptual_inputs=x_conceptual)
 
@@ -79,9 +77,9 @@ class NonSense(BaseConceptualModel):
         klu = torch.tensor(0.90, dtype=torch.float32, device=x_conceptual.device)  # land use correction factor [-]
 
         # Broadcast input tensor to consider multiple conceptual models in parallel
-        precipitation = torch.tile(x_conceptual[:, :, 0].unsqueeze(2), (1, 1, self.n_models))
-        et = torch.tile(x_conceptual[:, :, 1].unsqueeze(2), (1, 1, self.n_models))
-        temperature = torch.tile(x_conceptual[:, :, 2].unsqueeze(2), (1, 1, self.n_models))
+        precipitation = torch.tile(x_conceptual[:, :, 0].unsqueeze(2), (1, 1, self.n_conceptual_models))
+        et = torch.tile(x_conceptual[:, :, 1].unsqueeze(2), (1, 1, self.n_conceptual_models))
+        temperature = torch.tile(x_conceptual[:, :, 2].unsqueeze(2), (1, 1, self.n_conceptual_models))
 
         # Division between solid and liquid precipitation can be done outside of the loop as temperature is given
         temp_mask = temperature < 0
@@ -98,25 +96,25 @@ class NonSense(BaseConceptualModel):
 
         if initial_states is None:  # if not specified, take the default values
             ss = torch.full(
-                (x_conceptual.shape[0], self.n_models),
+                (x_conceptual.shape[0], self.n_conceptual_models),
                 self._initial_states["ss"],
                 dtype=torch.float32,
                 device=x_conceptual.device,
             )
             sb = torch.full(
-                (x_conceptual.shape[0], self.n_models),
+                (x_conceptual.shape[0], self.n_conceptual_models),
                 self._initial_states["sb"],
                 dtype=torch.float32,
                 device=x_conceptual.device,
             )
             si = torch.full(
-                (x_conceptual.shape[0], self.n_models),
+                (x_conceptual.shape[0], self.n_conceptual_models),
                 self._initial_states["si"],
                 dtype=torch.float32,
                 device=x_conceptual.device,
             )
             su = torch.full(
-                (x_conceptual.shape[0], self.n_models),
+                (x_conceptual.shape[0], self.n_conceptual_models),
                 self._initial_states["su"],
                 dtype=torch.float32,
                 device=x_conceptual.device,
@@ -176,5 +174,5 @@ class NonSense(BaseConceptualModel):
         return {"ss": 0.0, "su": 5.0, "si": 10.0, "sb": 15.0}
 
     @property
-    def parameter_ranges(self) -> Dict[str, List[float]]:
-        return {"dd": [0.0, 10.0], "sumax": [20.0, 700.0], "beta": [1.0, 6.0], "ki": [1.0, 100.0], "kb": [10.0, 1000.0]}
+    def parameter_ranges(self) -> Dict[str, Tuple[float, float]]:
+        return {"dd": (0.0, 10.0), "sumax": (20.0, 700.0), "beta": (1.0, 6.0), "ki": (1.0, 100.0), "kb": (10.0, 1000.0)}

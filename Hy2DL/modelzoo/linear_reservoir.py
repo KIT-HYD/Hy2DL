@@ -1,4 +1,4 @@
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Union, Optional, Tuple
 import torch
 from baseconceptualmodel import BaseConceptualModel
 
@@ -12,24 +12,19 @@ class linear_reservoir(BaseConceptualModel):
     ----------
     n_models : int
         Number of model entities that will be run at the same time
-    parameter_type: Dict[str, str]
-        Indicate if the model parameters will be static of dynamic (in time).
-
+    parameter_type : List[str]
+        List to specify which parameters of the conceptual model will be dynamic.
     """
-    def __init__(self, n_models: int=1, parameter_type: Dict[str, str]={}):
+    def __init__(self, n_models: int=1, parameter_type:List[str]=None):
         super(linear_reservoir, self).__init__()
-        self.n_models = n_models
+        self.n_conceptual_models = n_models
         self.parameter_type = self._map_parameter_type(parameter_type=parameter_type)
         self.output_size = 1
 
     def forward(self, x_conceptual: torch.Tensor, parameters: Dict[str, torch.Tensor], 
                 initial_states: Optional[Dict[str, torch.Tensor]] = None) -> Dict[str, Union[torch.Tensor, 
                                                                                              Dict[str, torch.Tensor]]]:
-        
-        """Forward pass on the SHM model. 
-        
-        In the forward pass, each element of the batch is associated with a basin. Therefore, the conceptual model is 
-        done to run multiple basins in parallel, and also multiple entities of the model at the same time. 
+        """Forward pass on the linear reservoir model
 
         Parameters
         ----------
@@ -59,13 +54,12 @@ class linear_reservoir(BaseConceptualModel):
                 Internal states of the conceptual model in the last timestep
 
         """    
-
         # initialize structures to store the information
         states, out = self._initialize_information(conceptual_inputs=x_conceptual)
 
         if initial_states is None: # if we did not specify initial states it takes the default values
-            si = torch.full((x_conceptual.shape[0], self.n_models), self._initial_states['si'], dtype=torch.float32, 
-                            device=x_conceptual.device)
+            si = torch.full((x_conceptual.shape[0], self.n_conceptual_models), self._initial_states['si'], 
+                            dtype=torch.float32, device=x_conceptual.device)
             
         else: # we specify the initial states
             si = initial_states['si']
@@ -74,8 +68,8 @@ class linear_reservoir(BaseConceptualModel):
         for j in range(x_conceptual.shape[1]):
            
             # Broadcast tensor to consider multiple conceptual models running in parallel
-            p = torch.tile(x_conceptual[:,j,0].unsqueeze(1), (1, self.n_models))
-            et = torch.tile(x_conceptual[:,j,1].unsqueeze(1), (1, self.n_models))
+            p = torch.tile(x_conceptual[:,j,0].unsqueeze(1), (1, self.n_conceptual_models))
+            et = torch.tile(x_conceptual[:,j,1].unsqueeze(1), (1, self.n_conceptual_models))
             
             # 1 bucket reservoir ------------------
             si = si + p #[mm]
@@ -102,8 +96,8 @@ class linear_reservoir(BaseConceptualModel):
             }
     
     @property
-    def parameter_ranges(self) -> Dict[str, List[float]]:
+    def parameter_ranges(self) -> Dict[str, Tuple[float, float]]:
         return {
-            'ki'  : [0.002, 1.0],
-            'aux_ET'  : [0.0, 1.5]
+            'ki'  : (0.002, 1.0),
+            'aux_ET'  : (0.0, 1.5)
             }

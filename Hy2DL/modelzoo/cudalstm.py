@@ -9,7 +9,6 @@ class CudaLSTM(nn.Module):
     ----------
     hyperparameters : Dict[str, Union[int, float, str, dict]]
         Various hyperparameters of the model
-
     """
     def __init__(self, hyperparameters: Dict[str, Union[int, float, str, dict]]):
         super().__init__()
@@ -37,9 +36,7 @@ class CudaLSTM(nn.Module):
         Returns
         -------
         pred: Dict[str, torch.Tensor]
-
         """
-        
         # initialize hidden state with zeros
         batch_size = x.shape[0]
         h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, requires_grad=True, dtype=torch.float32, 

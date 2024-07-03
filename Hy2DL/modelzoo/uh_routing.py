@@ -1,121 +1,112 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple
 import torch
 import torch.nn as nn
 from baseconceptualmodel import BaseConceptualModel
 
 class UH_routing(BaseConceptualModel):
-    """Unit hydrograph routing
-    """
-    def __init__(self, n_models: int=1, parameter_type: Dict[str, str]={}):
-        super(UH_routing, self).__init__()
-        self.n_models = n_models 
-        self.parameter_type = self._map_parameter_type(parameter_type=parameter_type)
-        self.output_size = 1
+    """Unit hydrograph routing based on gamma function.
 
+        Implementation based on Feng et al. [1]_ and Croley [2]_.  
+
+        References
+        ----------
+        .. [1] Feng, D., Liu, J., Lawson, K., & Shen, C. (2022). Differentiable, learnable, regionalized process-based 
+            models with multiphysical outputs can approach state-of-the-art hydrologic prediction accuracy. Water 
+            Resources Research, 58, e2022WR032404. https://doi.org/10.1029/2022WR032404
+        .. [2] Croley II, T. E. (1980). Gamma synthetic hydrographs. Journal of Hydrology, 47(1-2), 41-52. 
+            https://doi.org/10.1016/0022-1694(80)90046-3
+        """
+    def __init__(self, n_models: int=1, parameter_type:List[str]=None):
+        super(UH_routing, self).__init__()
+        self.n_conceptual_models = 1
+        self.parameter_type = self._map_parameter_type()
+        self.output_size = 1
 
     def forward(self, discharge: torch.Tensor, parameters: Dict[str, torch.Tensor]) -> torch.Tensor:
         """Forward pass on the routing model
 
         Parameters
         ----------
-        discharge: torch.Tensor
-            Discharge series
-
-        parameters: Dict[str, torch.Tensor]
-            Dictionary with parameterization of routing model
+        discharge : torch.Tensor
+            Discharge series.
+        parameters : Dict[str, torch.Tensor]
+            Dictionary with parameterization of routing model.
 
         Returns
         -------
-        y_routed: torch.Tensor
+        y_routed : torch.Tensor
             Discharge series after applying the rouing module
         """
-
-        UH = self._UH_gamma(a=parameters['routa'].permute([1,0,2]), b=parameters['routb'].permute([1,0,2]), lenF=15)
-        y_routed = self._UH_conv(x = discharge.permute([0,2,1]), UH=UH.permute([1,2,0]))
+        UH = self._gamma_routing(alpha=parameters['alpha'][:,0,0], beta=parameters['beta'][:,0,0], uh_len=15)
+        y_routed = self._uh_conv(discharge, UH)
         return y_routed
-
     
-    def _UH_gamma(self, a: torch.Tensor, b: torch.Tensor, lenF: int=10):
-        """Unit hydrograph based on gamma function. Implemented by Dapeng Feng [#]_.
-
-        This code was taken from https://github.com/mhpi/dPLHBVrelease and adapted for our specific case.
-
-        UH = 1 / (gamma(alpha)*thao^alpha) * t ^(alpha-1) * exp(-1/thao) 
+    def _gamma_routing(self, alpha: torch.Tensor, beta: torch.Tensor, uh_len: int):
+        """Unit hydrograph based on gamma function.
 
         Parameters
         ----------
-        a: torch.Tensor
-            parameter
-        b: torch.Tensor
-            parameter
-        lenF: int
-            Number of timesteps the unitary hydrograph will have
+        alpha: torch.Tensor
+            Shape parameter of the Gamma distribution.
+        beta: torch.Tensor
+            Scale parameter of the Gamma distribution.
+        uh_len: int
+            Number of timesteps the unitary hydrograph will have.
 
         Returns
         -------
-        w: torch.Tensor
+        uh : torch.Tensor
             Unit hydrograph
-
-        References
-        ----------
-        .. [#] Feng, D., Liu, J., Lawson, K., & Shen, C. (2022). Differentiable, learnable, regionalized process-based 
-            models with multiphysical outputs can approach state-of-the-art hydrologic prediction accuracy. Water 
-            Resources Research, 58, e2022WR032404. https://doi.org/10.1029/2022WR032404
-    
         """
-        m = a.shape
-        w = torch.zeros([lenF, m[1],m[2]])
-        aa = nn.functional.relu(a[0:lenF,:,:]).view([lenF, m[1],m[2]])+0.1 # minimum 0.1. First dimension of a is repeat
-        theta = nn.functional.relu(b[0:lenF,:,:]).view([lenF, m[1],m[2]])+0.5 # minimum 0.5
-        t = torch.arange(0.5,lenF*1.0, device=a.device).view([lenF,1,1]).repeat([1,m[1],m[2]])
-        denom = (aa.lgamma().exp())*(theta**aa)
-        mid= t**(aa-1)
-        right=torch.exp(-t/theta)
-        w = 1/denom*mid*right
-        w = w/w.sum(0) # scale to 1 for each UH
-
-        return w
+        # Steps where the pdf will be computed
+        x = torch.arange(0.5, 0.5 + uh_len, 1, dtype=torch.float32, device=alpha.device).unsqueeze(1).repeat(1, len(alpha))
+        # Compute the PDF using the Gamma distribution formula
+        coeff = (1 / (beta**alpha * torch.lgamma(alpha).exp()))
+        gamma_pdf = coeff * (x**(alpha - 1)) * torch.exp(-x / beta)
+        # Normalize data so the sum of the pdf equals 1
+        uh = gamma_pdf/torch.sum(gamma_pdf, dim=0)
+        return uh.unsqueeze(2)
     
-    def _UH_conv(self, x: torch.Tensor, UH: torch.Tensor):
-        """Unitary hydrograph routing. Implemented by Dapeng Feng [#]_.
-
-        This code was taken from https://github.com/mhpi/dPLHBVrelease and adapted for our specific case.
+    def _uh_conv(self, discharge: torch.Tensor, unit_hydrograph: torch.Tensor) -> torch.Tensor:
+        """
+        Convolution of discharge series and unit hydrograph.
 
         Parameters
         ----------
-        x: torch.Tensor
-            Discharge series
-        UH: torch.Tensor
-            Unit hydrograph
+        discharge : torch.Tensor
+            Discharge series.
+        unit_hydrograph : torch.Tensor
+            Unit hydrograph.
 
         Returns
         -------
-        y: torch.Tensor
-            Routed discharge
-
-        References
-        ----------
-        .. [#] Feng, D., Liu, J., Lawson, K., & Shen, C. (2022). Differentiable, learnable, regionalized process-based 
-            models with multiphysical outputs can approach state-of-the-art hydrologic prediction accuracy. Water 
-            Resources Research, 58, e2022WR032404. https://doi.org/10.1029/2022WR032404
+        torch.Tensor
+            Routed discharge.
         """
-                
-        mm= x.shape; nb=mm[0]
-        m = UH.shape[-1]
-        padd = m-1
+        batch_size = discharge.shape[0]
+        kernel_size = unit_hydrograph.shape[0]
+        padding_size = kernel_size - 1
 
-        xx = x.view([1,nb,mm[-1]])
-        w  = UH.view([nb,1,m])
-        groups = nb
+        # Transpose unit_hydrograph to shape (batch_size, 1, kernel_size)
+        unit_hydrograph = unit_hydrograph.permute(1, 2, 0)
 
-        y = nn.functional.conv1d(xx, torch.flip(w,[2]), groups=groups, padding=padd, stride=1, bias=None)
-        y=y[:,:,0:-padd]
+        # Reshape discharge to shape (1, batch_size, timesteps)
+        discharge = discharge.permute(2, 0, 1)
 
-        return y.permute([1,2,0])
+        # Perform the convolution
+        routed_discharge = torch.nn.functional.conv1d(discharge, 
+                                                      torch.flip(unit_hydrograph, [2]), 
+                                                      groups=batch_size, 
+                                                      padding=padding_size
+                                                      )
+        # Remove padding from the output
+        routed_discharge = routed_discharge[:, :, :-padding_size]
+
+        return routed_discharge.permute(1, 2, 0)  # Shape: (batch_size, timesteps, 1)
 
     @property
-    def parameter_ranges(self) -> Dict[str, List[float]]:
+    def parameter_ranges(self) -> Dict[str, Tuple[float, float]]:
         return {
-            'routa' : [0.0, 2.9],
-            'routb' : [0.0, 6.5]
+            'alpha' : (0.0, 2.9),
+            'beta' : (0.0, 6.5)
             }

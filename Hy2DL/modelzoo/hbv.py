@@ -1,32 +1,32 @@
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Union, Optional, Tuple
 import torch
 from baseconceptualmodel import BaseConceptualModel
 
 class HBV(BaseConceptualModel):
-    """HBV model implemented by Dapeng Feng [#]_. 
+    """HBV model. 
     
-    This code was taken from https://github.com/mhpi/dPLHBVrelease and adapted for our specific case. The code creates a
-    modified version of the HBV model that can be used as a differentiable entity to create hybrid models. One can run 
-    it in parallel for multiple basins, and also multiple entities of the model at the same time.
+    Implementation based on Feng et al. [1]_ and Seibert [2]_. The code creates a modified version of the HBV model that 
+    can be used as a differentiable entity to create hybrid models. One can run multiple entities of the model at the 
+    same time.
 
     Parameters
     ----------
     n_models : int
         Number of model entities that will be run at the same time
-    parameter_type: Dict[str, str]
-        Indicate if the model parameters will be static of dynamic (in time).
+    parameter_type : List[str]
+        List to specify which parameters of the conceptual model will be dynamic.  
 
     References
     ----------
-    .. [#] Feng, D., Liu, J., Lawson, K., & Shen, C. (2022). Differentiable, learnable, regionalized process-based 
+    .. [1] Feng, D., Liu, J., Lawson, K., & Shen, C. (2022). Differentiable, learnable, regionalized process-based 
         models with multiphysical outputs can approach state-of-the-art hydrologic prediction accuracy. Water Resources 
         Research, 58, e2022WR032404. https://doi.org/10.1029/2022WR032404
-    
-    
+    .. [2] Seibert, J. (2005) HBV Light Version 2. User’s Manual. Department of Physical Geography and Quaternary 
+        Geology, Stockholm University, Stockholm
     """
-    def __init__(self, n_models:int=1, parameter_type: Dict[str, str]={}):
+    def __init__(self, n_models:int=1, parameter_type:List[str]=None):
         super(HBV, self).__init__()
-        self.n_models = n_models
+        self.n_conceptual_models = n_models
         self.parameter_type = self._map_parameter_type(parameter_type=parameter_type)
         self.output_size = 1
 
@@ -35,9 +35,6 @@ class HBV(BaseConceptualModel):
                 initial_states: Optional[Dict[str, torch.Tensor]] = None) -> Dict[str, Union[torch.Tensor, 
                                                                                              Dict[str, torch.Tensor]]]:
         """Forward pass on the HBV model. 
-        
-        In the forward pass, each element of the batch is associated with a basin. Therefore, the conceptual model is 
-        done to run multiple basins in parallel, and also multiple entities of the model at the same time. 
 
         Parameters
         ----------
@@ -46,28 +43,24 @@ class HBV(BaseConceptualModel):
             certain prediction period. The time_steps refer to the number of time steps (e.g. days) that our conceptual
             model is going to be run for. The n_inputs refer to the dynamic forcings used to run the conceptual model
             (e.g. Precipitation, Temperature...)
-
-        parameters: Dict[str, torch.Tensor]
-            Dictionary with parameterization of conceptual model
-
+        parameter_type : List[str]
+            List to specify which parameters of the conceptual model will be dynamic.  
         initial_states: Optional[Dict[str, torch.Tensor]]
             Optional parameter! In case one wants to specify the initial state of the internal states of the conceptual
             model. 
 
         Returns
         -------
-        Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]
+        Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]
             - y_hat: torch.Tensor
                 Simulated outflow
             - parameters: Dict[str, torch.Tensor]
                 Dynamic parameterization of the conceptual model
-            - internal_states: Dict[str, torch.Tensor]]
+            - internal_states: Dict[str, torch.Tensor]
                 Time-evolution of the internal states of the conceptual model
-            - last_states: Dict[str, torch.Tensor]]
+            - last_states: Dict[str, torch.Tensor]
                 Internal states of the conceptual model in the last timestep
-
         """
-
         # initialize structures to store the information
         states, out = self._initialize_information(conceptual_inputs=x_conceptual)
 
@@ -75,12 +68,14 @@ class HBV(BaseConceptualModel):
         zero = torch.tensor(0.0, dtype=torch.float32, device=x_conceptual.device)
         
         # Broadcast tensor to consider multiple conceptual models running in parallel
-        precipitation = torch.tile(x_conceptual[:,:,0].unsqueeze(2), (1, 1, self.n_models))
-        et = torch.tile(x_conceptual[:,:,1].unsqueeze(2), (1, 1, self.n_models))
-        temperature = (x_conceptual[:, :, 2] + x_conceptual[:, :, 3]) / 2 #CAMELS_US
-        #temperature = x_conceptual[:, :, 2] #CAMELS_GB
-        temperature = torch.tile(temperature.unsqueeze(2), (1, 1, self.n_models))
-           
+        precipitation = torch.tile(x_conceptual[:,:,0].unsqueeze(2), (1, 1, self.n_conceptual_models))
+        et = torch.tile(x_conceptual[:,:,1].unsqueeze(2), (1, 1, self.n_conceptual_models))
+        if x_conceptual.shape[2]==4: # the user specified tmax and tmin
+            temperature = (x_conceptual[:, :, 2] + x_conceptual[:, :, 3]) / 2
+        else:
+            temperature = x_conceptual[:, :, 2]
+        temperature = torch.tile(temperature.unsqueeze(2), (1, 1, self.n_conceptual_models))
+    
         # Division between solid and liquid precipitation can be done outside of the loop
         temp_mask = temperature < parameters['TT']
         liquid_p = precipitation.clone()
@@ -89,16 +84,16 @@ class HBV(BaseConceptualModel):
         snow[~temp_mask] = zero
         
         if initial_states is None: # if we did not specify initial states it takes the default values
-            SNOWPACK    = torch.full((x_conceptual.shape[0], self.n_models), self._initial_states['SNOWPACK'], 
-                                     dtype=torch.float32, device=x_conceptual.device)
-            MELTWATER   = torch.full((x_conceptual.shape[0], self.n_models), self._initial_states['MELTWATER'], 
-                                     dtype=torch.float32, device=x_conceptual.device)
-            SM          = torch.full((x_conceptual.shape[0], self.n_models), self._initial_states['SM'], 
-                                     dtype=torch.float32, device=x_conceptual.device)
-            SUZ         = torch.full((x_conceptual.shape[0], self.n_models), self._initial_states['SUZ'], 
-                                     dtype=torch.float32, device=x_conceptual.device)
-            SLZ         = torch.full((x_conceptual.shape[0], self.n_models), self._initial_states['SLZ'], 
-                                     dtype=torch.float32, device=x_conceptual.device)
+            SNOWPACK    = torch.full((x_conceptual.shape[0], self.n_conceptual_models), 
+                                     self._initial_states['SNOWPACK'], dtype=torch.float32, device=x_conceptual.device)
+            MELTWATER   = torch.full((x_conceptual.shape[0], self.n_conceptual_models), 
+                                     self._initial_states['MELTWATER'], dtype=torch.float32, device=x_conceptual.device)
+            SM          = torch.full((x_conceptual.shape[0], self.n_conceptual_models), 
+                                     self._initial_states['SM'], dtype=torch.float32, device=x_conceptual.device)
+            SUZ         = torch.full((x_conceptual.shape[0], self.n_conceptual_models), 
+                                     self._initial_states['SUZ'], dtype=torch.float32, device=x_conceptual.device)
+            SLZ         = torch.full((x_conceptual.shape[0], self.n_conceptual_models), 
+                                     self._initial_states['SLZ'], dtype=torch.float32, device=x_conceptual.device)
         else: # we specify the initial states
             SNOWPACK    = initial_states['SNOWPACK']
             MELTWATER   = initial_states['MELTWATER']
@@ -134,8 +129,10 @@ class HBV(BaseConceptualModel):
             excess = SM - parameters['FC'][:, j, :]
             excess = torch.clamp(excess, min=0.0)
             SM = SM - excess
-            evapfactor = (SM / (parameters['LP'][:, j, :] * parameters['FC'][:, j, :]))**parameters['BETAET'][:, j, :]
-            #evapfactor = SM / (parameters['LP'][:, j, :] * parameters['FC'][:, j, :])
+            if 'BETAET' in parameters:
+                evapfactor = (SM / (parameters['LP'][:, j, :] * parameters['FC'][:, j, :]))**parameters['BETAET'][:, j, :]
+            else:
+                evapfactor = SM / (parameters['LP'][:, j, :] * parameters['FC'][:, j, :])
             evapfactor  = torch.clamp(evapfactor, min=0.0, max=1.0)
             ETact = et[:, j, :] * evapfactor
             ETact = torch.min(SM, ETact)
@@ -179,19 +176,20 @@ class HBV(BaseConceptualModel):
             }
 
     @property
-    def parameter_ranges(self) -> Dict[str, List[float]]:
+    def parameter_ranges(self) -> Dict[str, Tuple[float, float]]:
         return {
-            'BETA': [1.0, 6.0],
-            'FC'  : [50.0, 1000.0],
-            'K0'  : [0.05, 0.9],
-            'K1'  : [0.01, 0.5],
-            'K2'  : [0.001, 0.2],
-            'LP'  : [0.2, 1.0],
-            'PERC' : [0.0, 10.0],
-            'UZL' : [0.0, 100.0],
-            'TT'  : [-2.5 , 2.5],
-            'CFMAX' : [0.5, 10.0],
-            'CFR' : [0.0, 0.1],
-            'CWH' : [0.0, 0.2],
-            'BETAET': [0.3, 5.0]
+            'BETA': (1.0, 6.0),
+            'FC'  : (50.0, 1000.0),
+            'K0'  : (0.05, 0.9),
+            'K1'  : (0.01, 0.5),
+            'K2'  : (0.001, 0.2),
+            'LP'  : (0.2, 1.0),
+            'PERC' : (0.0, 10.0),
+            'UZL' : (0.0, 100.0),
+            'TT'  : (-2.5 , 2.5),
+            'CFMAX' : (0.5, 10.0),
+            'CFR' : (0.0, 0.1),
+            'CWH' : (0.0, 0.2),
+            'BETAET': (0.3, 5.0)
             }
+    

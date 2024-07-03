@@ -121,10 +121,7 @@ class CAMELS_US(BaseDataset):
         for column in df.columns:
             if df[column].dtype not in ['float64', 'int64']:
                 df[column], _ = pd.factorize(df[column], sort=True)
-        
-        # Replace nan by the mean value of the respective column
-        #df_attributes = df_attributes.fillna(df_attributes.mean())
-        
+
         # Filter attributes and basins of interest
         df = df.loc[self.entities_ids, self.static_input]
         

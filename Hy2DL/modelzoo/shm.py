@@ -1,30 +1,30 @@
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Union, Optional, Tuple
 import torch
 from baseconceptualmodel import BaseConceptualModel
 
 class SHM(BaseConceptualModel):
-    """Modified version of the SHM [#]_  model 
+    """Modified version of the SHM [1]_ model. 
     
-    The model can be used as a differentiable entity to create hybrid models. One can run it in parallel for multiple 
-    basins, and also multiple entities of the model at the same time.
+    The code creates a modified version of the SHM model that can be used as a differentiable entity to create hybrid 
+    models. One can run multiple entities of the model at the same time.
 
     Parameters
     ----------
     n_models : int
         Number of model entities that will be run at the same time
-    parameter_type: Dict[str, str]
-        Indicate if the model parameters will be static of dynamic (in time).
+    parameter_type : List[str]
+        List to specify which parameters of the conceptual model will be dynamic.  
 
     References
     ----------
-    .. [#] Ehret, U., van Pruijssen, R., Bortoli, M., Loritz, R.,  Azmi, E. and Zehe, E: Adaptive clustering: reducing 
+    .. [1] Ehret, U., van Pruijssen, R., Bortoli, M., Loritz, R.,  Azmi, E. and Zehe, E: Adaptive clustering: reducing 
         the computational costs of distributed (hydrological) modelling by exploiting time-variable similarity among 
         model elements. HESS, 24, 4389-4411, doi: 10.5194/hess-24-4389-2020, 2020
     
     """
-    def __init__(self, n_models:int=1, parameter_type: Dict[str, str]={}):
+    def __init__(self, n_models:int=1, parameter_type:List[str]=None):
         super(SHM, self).__init__()
-        self.n_models = n_models
+        self.n_conceptual_models = n_models
         self.parameter_type = self._map_parameter_type(parameter_type=parameter_type)
         self.output_size = 1
     
@@ -32,9 +32,6 @@ class SHM(BaseConceptualModel):
                 initial_states: Optional[Dict[str, torch.Tensor]] = None) -> Dict[str, Union[torch.Tensor, 
                                                                                              Dict[str, torch.Tensor]]]:
         """Forward pass on the SHM model. 
-        
-        In the forward pass, each element of the batch is associated with a basin. Therefore, the conceptual model is 
-        done to run multiple basins in parallel, and also multiple entities of the model at the same time. 
 
         Parameters
         ----------
@@ -43,28 +40,25 @@ class SHM(BaseConceptualModel):
             certain prediction period. The time_steps refer to the number of time steps (e.g. days) that our conceptual
             model is going to be run for. The n_inputs refer to the dynamic forcings used to run the conceptual model
             (e.g. Precipitation, Temperature...)
-
         parameters: Dict[str, torch.Tensor]
             Dictionary with parameterization of conceptual model
-
         initial_states: Optional[Dict[str, torch.Tensor]]
             Optional parameter! In case one wants to specify the initial state of the internal states of the conceptual
             model. 
 
         Returns
         -------
-        Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]
+        Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]
             - y_hat: torch.Tensor
                 Simulated outflow
             - parameters: Dict[str, torch.Tensor]
                 Dynamic parameterization of the conceptual model
-            - internal_states: Dict[str, torch.Tensor]]
+            - internal_states: Dict[str, torch.Tensor]
                 Time-evolution of the internal states of the conceptual model
-            - last_states: Dict[str, torch.Tensor]]
+            - last_states: Dict[str, torch.Tensor]
                 Internal states of the conceptual model in the last timestep
 
         """
-
         # initialize structures to store the information
         states, out = self._initialize_information(conceptual_inputs=x_conceptual)
 
@@ -74,11 +68,13 @@ class SHM(BaseConceptualModel):
         klu = torch.tensor(0.90, dtype=torch.float32, device=x_conceptual.device)  # land use correction factor [-]
 
         # Broadcast tensor to consider multiple conceptual models running in parallel
-        precipitation = torch.tile(x_conceptual[:,:,0].unsqueeze(2), (1, 1, self.n_models))
-        et = torch.tile(x_conceptual[:,:,1].unsqueeze(2), (1, 1, self.n_models))
-        #temperature = (x_conceptual[:, :, 2] + x_conceptual[:, :, 3]) / 2 #CAMELS_US
-        temperature = x_conceptual[:, :, 2] #CAMELS_GB
-        temperature = torch.tile(temperature.unsqueeze(2), (1, 1, self.n_models))
+        precipitation = torch.tile(x_conceptual[:,:,0].unsqueeze(2), (1, 1, self.n_conceptual_models))
+        et = torch.tile(x_conceptual[:,:,1].unsqueeze(2), (1, 1, self.n_conceptual_models))
+        if x_conceptual.shape[2]==4: # the user specified tmax and tmin
+            temperature = (x_conceptual[:, :, 2] + x_conceptual[:, :, 3]) / 2
+        else: # the user specified tmean
+            temperature = x_conceptual[:, :, 2]
+        temperature = torch.tile(temperature.unsqueeze(2), (1, 1, self.n_conceptual_models))
 
         # Division between solid and liquid precipitation can be done outside of the loop as temperature is given
         temp_mask = temperature<0
@@ -94,16 +90,16 @@ class SHM(BaseConceptualModel):
         pwp = torch.tensor(0.8, dtype=torch.float32, device=x_conceptual.device)* parameters['sumax']  
 
         if initial_states is None: # if we did not specify initial states it takes the default values
-            ss = torch.full((x_conceptual.shape[0], self.n_models), self._initial_states['ss'], dtype=torch.float32, 
-                            device=x_conceptual.device)
-            sf = torch.full((x_conceptual.shape[0], self.n_models), self._initial_states['sf'], dtype=torch.float32, 
-                    device=x_conceptual.device)
-            su = torch.full((x_conceptual.shape[0], self.n_models), self._initial_states['su'], dtype=torch.float32, 
-                    device=x_conceptual.device)
-            si = torch.full((x_conceptual.shape[0], self.n_models), self._initial_states['si'], dtype=torch.float32, 
-                    device=x_conceptual.device)
-            sb = torch.full((x_conceptual.shape[0], self.n_models), self._initial_states['sb'], dtype=torch.float32, 
-                    device=x_conceptual.device)
+            ss = torch.full((x_conceptual.shape[0], self.n_conceptual_models), self._initial_states['ss'], 
+                            dtype=torch.float32, device=x_conceptual.device)
+            sf = torch.full((x_conceptual.shape[0], self.n_conceptual_models), self._initial_states['sf'], 
+                            dtype=torch.float32, device=x_conceptual.device)
+            su = torch.full((x_conceptual.shape[0], self.n_conceptual_models), self._initial_states['su'], 
+                            dtype=torch.float32, device=x_conceptual.device)
+            si = torch.full((x_conceptual.shape[0], self.n_conceptual_models), self._initial_states['si'], 
+                            dtype=torch.float32, device=x_conceptual.device)
+            sb = torch.full((x_conceptual.shape[0], self.n_conceptual_models), self._initial_states['sb'], 
+                            dtype=torch.float32, device=x_conceptual.device)
         
         else: # we specify the initial states
             ss = initial_states['ss']
@@ -125,7 +121,7 @@ class SHM(BaseConceptualModel):
 
             # Fastflow module ----------------------
             sf = sf + qf_in
-            qf_out = sf / parameters['kf'][:, j, :]
+            qf_out = sf * parameters['kf'][:, j, :]
             sf = sf - qf_out
 
             # Unsaturated zone----------------------
@@ -143,13 +139,13 @@ class SHM(BaseConceptualModel):
             # Interflow reservoir ------------------
             qi_in = qu_out * parameters['perc'][:, j, :] # [mm]
             si = si + qi_in  # [mm]
-            qi_out = si / parameters['ki'][:, j, :] # [mm]
+            qi_out = si * parameters['ki'][:, j, :] # [mm]
             si = si - qi_out  # [mm]
 
             # Baseflow reservoir -------------------
             qb_in = qu_out * (one - parameters['perc'][:, j, :])  # [mm]
             sb = sb + qb_in  # [mm]
-            qb_out = sb / parameters['kb'][:, j, :]  # [mm]
+            qb_out = sb * parameters['kb'][:, j, :]  # [mm]
             sb = sb - qb_out
 
             # Store time evolution of the internal states
@@ -170,22 +166,22 @@ class SHM(BaseConceptualModel):
     @property
     def _initial_states(self) -> Dict[str, float]:
         return {
-            'ss'  : 0.0,
-            'sf'  : 1.0,
-            'su'  : 5.0,
-            'si'  : 10.0,
-            'sb'  : 15.0
+            'ss'  : 0.001,
+            'sf'  : 0.001,
+            'su'  : 0.001,
+            'si'  : 0.001,
+            'sb'  : 0.001
             }
     
     @property
-    def parameter_ranges(self) -> Dict[str, List[float]]:
+    def parameter_ranges(self) -> Dict[str, Tuple[float, float]]:
         return {
-            'dd': [0.0, 10.0],
-            'f_thr'  : [10.0,60.0],
-            'sumax'  : [20.0,700.0],
-            'beta'  : [1.0, 6.0],
-            'perc'  : [0.0, 1.0],
-            'kf'  : [1.0, 20.0],
-            'ki'  : [1.0, 100.0],
-            'kb'  : [10.0, 1000.0]
+            'dd': (0.0, 10.0),
+            'f_thr': (10.0,60.0),
+            'sumax': (20.0,700.0),
+            'beta': (1.0, 6.0),
+            'perc': (0.0, 1.0),
+            'kf': (0.05, 0.9),
+            'ki': (0.01, 0.5),
+            'kb': (0.001, 0.2)
             }
