@@ -46,7 +46,8 @@ class ModelCalibrationCamelsGB(ModelCalibration):
         if isinstance(self.time_period, list):
             df = df.loc[self.time_period[0]:self.time_period[1], :]
         
-        # Filter variables of interest
+        # Filter for specific time period is there is any [list]. If custom time periods are used, what we do it
+        # run the model for the whole period and then filter the training/testing subsets.
         df = df.loc[:, self.input_variables + self.target_variables]
 
         # save information

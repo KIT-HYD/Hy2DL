@@ -461,23 +461,6 @@ class HBV(BaseConceptualModel):
         out = self._uh_conv(discharge = out, unit_hydrograph=UH).reshape((-1, 1))
         
         return out, states
- 
-    def _UH_gamma(self, a: float, b: float, lenF: int=10):
-        aa = np.array([a]*lenF)
-        aa = np.maximum(aa, 0.0)
-
-        theta = np.array([b]*lenF)
-        theta = np.maximum(theta, 0.0)
-
-        t = np.arange(0.5, 0.5 + lenF, 1)
-
-        denom = (np.exp(scipy.special.loggamma(aa)))*(theta**aa)
-        mid= t**(aa-1)
-        right=np.exp(-t/theta)
-        w = 1/denom*mid*right
-        w = w/w.sum(0) # scale to 1 for each UH
-
-        return w
     
     def _gamma_routing(self, alpha:float, beta:float, uh_len:int = 10):
         """Unit hydrograph based on gamma function.

@@ -47,16 +47,16 @@ if __name__ == '__main__':
     path_additional_features = "../../data/CAMELS_US/pet_hargreaves.pickle"
     input_variables = ["prcp(mm/day)", "pet(mm/day)", "tmax(C)", "tmin(C)"]
     target_variables = ['QObs(mm/d)']
-    training_period = ["1980-10-01","1997-12-31"]
-    testing_period = ["1997-01-01","2008-12-31"]
-    #training_period = "../../data/CAMELS_US/train_split_file_new.p"
-    #testing_period = "../../data/CAMELS_US/test_split_file_new.p"
-    batch_size = 15
+    #training_period = ["1980-10-01","1997-12-31"]
+    #testing_period = ["1997-01-01","2008-12-31"]
+    training_period = "../../data/CAMELS_US/train_split_file_new.p"
+    testing_period = "../../data/CAMELS_US/test_split_file_new.p"
+    batch_size = 75
     warmup_period = 365
     random_seed = 42
 
     # Save results
-    path_output = '../results/conceptual_models_CAMELS_US/'
+    path_output = '../results/HBV_extrapolation/'
 
     # use when one select the best parameters, depends on the loss function one wants. 
     maximize = True # True for gaussian_likelihood, False of rmse
@@ -114,8 +114,9 @@ if __name__ == '__main__':
 
 
         # Run the calibration of the different basins in parallel ---------------------------------------------------------
+        optimizer = optimization_method(random_state =random_seed)
         calibrate_basins(training_object=training_object, 
-                         optimization_method=optimization_method, 
+                         optimization_method=optimizer, 
                          basins=basin_batch, 
                          path_output=path_output,
                          random_seed=random_seed)

@@ -32,6 +32,8 @@ class sce():
         Value of the normalized geometric range of the parameters in the population below which convergence is deemed achieved.
     max_loop_inc: int
         Number of loops executed at max in this function call
+    random_state: int
+        To have reproducible results
     References
     ----------
     .. [#] "Houska, T., Kraft, P., Chamorro-Chavez, A. and Breuer, L.: SPOTting Model Parameters Using a Ready-Made 
@@ -45,7 +47,8 @@ class sce():
                  kstop:int = 100,
                  peps: float = 0.1,
                  pcento: float =0.1,
-                 max_loop_inc: int=None
+                 max_loop_inc: int=None,
+                 random_state: int = None
                  ):
         
         self.name = name
@@ -55,6 +58,7 @@ class sce():
         self.peps = peps
         self.pcento = pcento
         self.max_loop_inc = max_loop_inc
+        self.random_state = random_state
 
     def run_calibration(self, calibration_obj, path_output:str):
         """ Run calibration method
@@ -71,7 +75,8 @@ class sce():
 
         file_name = path_output + calibration_obj.model.name + '_'  + self.name + '_' + calibration_obj.basin_id
         
-        sampler=spotpy.algorithms.sceua(calibration_obj, dbname=file_name, dbformat='csv', save_sim=False)
+        sampler=spotpy.algorithms.sceua(calibration_obj, dbname=file_name, dbformat='csv', save_sim=False,
+                                        random_state = self.random_state)
         sampler.sample(repetitions=self.repetitions, 
                        ngs=self.ngs, 
                        kstop=self.kstop, 
@@ -113,6 +118,7 @@ class dream():
                  convergence_limit: float=1.2,
                  runs_after_convergence: int=100,
                  acceptance_test_option: int=6,
+                 random_state: int = None
                  ):
           
         self.name = name
@@ -125,6 +131,7 @@ class dream():
         self.convergence_limit = convergence_limit
         self.runs_after_convergence = runs_after_convergence
         self.acceptance_test_option = acceptance_test_option
+        self.random_state = random_state
 
 
     def run_calibration(self, calibration_obj, path_output:str):
@@ -142,7 +149,8 @@ class dream():
 
         file_name = path_output + calibration_obj.model.name + '_'  + self.name + '_' + calibration_obj.basin_id
 
-        sampler = spotpy.algorithms.dream(calibration_obj, dbname=file_name, dbformat="csv", save_sim=False)
+        sampler = spotpy.algorithms.dream(calibration_obj, dbname=file_name, dbformat="csv", save_sim=False, 
+                                          random_state = self.random_state)
         sampler = sampler.sample(repetitions=self.repetitions,
                                  nChains=self.nChains,
                                  nCr=self.nCr,
@@ -200,6 +208,7 @@ class rope():
                  percentage_first_run: float =0.1,
                  percentage_following_runs: float = 0.1,
                  NDIR: int = None,
+                 random_state: int = None
                  ):
             
         
@@ -210,6 +219,7 @@ class rope():
         self.percentage_first_run=percentage_first_run
         self.percentage_following_runs=percentage_following_runs
         self.NDIR = NDIR
+        self.random_state = random_state
 
 
     def run_calibration(self, calibration_obj, path_output:str):
@@ -227,7 +237,8 @@ class rope():
 
         file_name = path_output + calibration_obj.model.name + '_'  + self.name + '_' + calibration_obj.basin_id
 
-        sampler = spotpy.algorithms.rope(calibration_obj, dbname=file_name, dbformat="csv", save_sim=False)
+        sampler = spotpy.algorithms.rope(calibration_obj, dbname=file_name, dbformat="csv", save_sim=False, 
+                                         random_state = self.random_state)
         sampler = sampler.sample(repetitions=self.repetitions,
                                  repetitions_first_run = self.repetitions_first_run,
                                  subsets = self.subsets,

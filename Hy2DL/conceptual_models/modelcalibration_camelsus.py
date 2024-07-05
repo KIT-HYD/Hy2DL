@@ -79,8 +79,8 @@ class ModelCalibrationCamelsUS(ModelCalibration):
         df_target.QObs = 28316846.592 * df_target.QObs * 86400 / (area * 10**6)
         df["QObs(mm/d)"] = df_target.loc[:, "QObs"]
         
-        
-        # Filter for specific time period is there is any, otherwise it takes the whole time series
+        # Filter for specific time period is there is any [list]. If custom time periods are used, what we do it
+        # run the model for the whole period and then filter the training/testing subsets.
         if isinstance(self.time_period, list):
             df = df.loc[self.time_period[0]:self.time_period[1], :]
         

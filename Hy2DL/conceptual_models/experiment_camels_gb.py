@@ -106,8 +106,9 @@ if __name__ == '__main__':
 
 
         # Run the calibration of the different basins in parallel ---------------------------------------------------------
+        optimizer = optimization_method(random_state =random_seed)
         calibrate_basins(training_object=training_object, 
-                         optimization_method=optimization_method, 
+                         optimization_method=optimizer, 
                          basins=basin_batch, 
                          path_output=path_output,
                          random_seed=random_seed)

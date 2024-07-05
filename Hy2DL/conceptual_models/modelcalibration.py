@@ -157,7 +157,7 @@ def calibrate_single_basin(calibration_object,
 def calibrate_basins(training_object, optimization_method, basins, path_output: str, random_seed: int = 42):
 
     pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
-    pool.starmap(calibrate_single_basin, [(training_object[basin], optimization_method(), path_output, random_seed) 
+    pool.starmap(calibrate_single_basin, [(training_object[basin], optimization_method, path_output, random_seed) 
                                           for basin in basins])
 
     # Close the pool after processing
