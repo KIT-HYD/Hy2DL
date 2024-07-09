@@ -2,9 +2,9 @@
 
 # **Description**
 # 
-# The following notebook contains the code to create, train, and test a process-based rainfall-runoff model. The
-# calibration is done using the library [Spotpy](https://doi.org/10.1371/journal.pone.0145180)[1]. When multiple basins
-# are being calibrated, the code make the calibration in parallel (one basin per core) to speed up the computation.
+# The following notebook contains the code to calibrate a process-based rainfall-runoff model. The calibration is done 
+# using the library [Spotpy](https://doi.org/10.1371/journal.pone.0145180)[1]. When multiple basins are being 
+# calibrated, the code runs the calibration in parallel (one basin per core) to speed up the computation.
 # 
 # **Authors:**
 # - Eduardo Acuna Espinoza (eduardo.espinoza@kit.edu)
@@ -76,10 +76,9 @@ if __name__ == '__main__':
         print(f"Folder '{path_output}' already exists.")
     
     
-    # Process the basins in batches (avoid computer fro crashing)
+    # Process the basins in batches (avoid memory issues)
     dfs = []
     batches = [selected_basins_id[i:i + batch_size] for i in range(0, len(selected_basins_id), batch_size)]
-    #batches = [selected_basins_id]
     
     start_time = time.time()
     for basin_batch in batches:
@@ -108,7 +107,7 @@ if __name__ == '__main__':
                                                       path_additional_features=path_additional_features)
 
 
-        # Run the calibration of the different basins in parallel ---------------------------------------------------------
+        # Run the calibration of the different basins in parallel -----------------------------------------------------
         optimizer = optimization_method(random_state =random_seed)
         calibrate_basins(training_object=training_object, 
                          optimization_method=optimizer, 
@@ -117,7 +116,7 @@ if __name__ == '__main__':
                          random_seed=random_seed)
         
 
-        # Process and summarize the results ------------------------------------------------------------------------------
+        # Process and summarize the results ---------------------------------------------------------------------------
         hyd_model = hydrological_model()
         optimizer = optimization_method()
         df_calibration = pd.DataFrame(index=range(len(basin_batch)), 
