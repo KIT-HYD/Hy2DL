@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Hy2DL"
+version = "0.3.0"
+authors = [
+    {name = "Eduardo Acuña Espinoza", email = "eduardo.espinoza@kit.edu"},
+    {name = "Ralf Loritz", email = "ralf.loritz@kit.edu"},
+    {name = "Manuel Álvarez Chaves", email = "manuel.alvarez-chaves@simtech.uni-stuttgart.de"},
+]
+description = "(Hybrid) Hydrological Models for rainfall-runoff prediction"
+readme = "README.md"
+license = {text = "GNU GPLv3"}
+requires-python=">= 3.10"
+dependencies = [
+    "jupyterlab >= 4.0.11",
+    "matplotlib >= 3.8.3",
+    "numba >= 0.58.1",
+    "numpy >= 1.26.3",
+    "pandas >= 2.2.0",
+    "pyarrow >= 15.0.1",
+    "spotpy >= 1.6.2",
+    "torch >= 2.2.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "netCDF4 >= 1.7.0",
+    "scipy >= 1.12.0",
+    "seaborn >= 0.13.2",
+    "xarray >= 2024.0",
+]
+
+[tool.setuptools]
+packages = ["Hy2DL",]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = 120
+
+[tool.ruff.lint]
+# Default ["E4", "E7", "E9", and "F"] --> Pyflakes ("F") and pycodestyle ("E")
+extend-select = ["B", "E501", "I", "Q"]
