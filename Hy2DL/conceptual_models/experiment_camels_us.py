@@ -2,9 +2,9 @@
 
 # **Description**
 # 
-# The following notebook contains the code to create, train, and test a process-based rainfall-runoff model. The
-# calibration is done using the library [Spotpy](https://doi.org/10.1371/journal.pone.0145180)[1]. When multiple basins
-# are being calibrated, the code make the calibration in parallel (one basin per core) to speed up the computation.
+# The following notebook contains the code to calibrate a process-based rainfall-runoff model. The calibration is done 
+# using the library [Spotpy](https://doi.org/10.1371/journal.pone.0145180)[1]. When multiple basins are being 
+# calibrated, the code runs the calibration in parallel (one basin per core) to speed up the computation.
 # 
 # **Authors:**
 # - Eduardo Acuna Espinoza (eduardo.espinoza@kit.edu)
@@ -12,7 +12,6 @@
 # **References:**
 # [1]: "Houska, T., Kraft, P., Chamorro-Chavez, A. and Breuer, L.: SPOTting Model Parameters Using a Ready-Made Python 
 # Package, PLoS ONE, 10(12), e0145180, doi:10.1371/journal.pone.0145180, 2015"
-
 
 #Import necessary packages
 import sys
@@ -39,7 +38,6 @@ from evaluation_metrics import nse_loss
 
 # -----------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__': 
-    
     # Initialize information
     path_entities= "../../data/basin_id/basins_camels_us_531.txt"
     path_data = "../../data/CAMELS_US"
@@ -79,11 +77,10 @@ if __name__ == '__main__':
         print(f"Folder '{path_output}' already exists.")
     
     
-    # Process the basins in batches (avoid computer fro crashing)
+    # Process the basins in batches (avoid memory issues)
     dfs = []
     batches = [selected_basins_id[i:i + batch_size] for i in range(0, len(selected_basins_id), batch_size)]
-    #batches = [selected_basins_id]
-    
+
     start_time = time.time()
     for basin_batch in batches:
         training_object = {}

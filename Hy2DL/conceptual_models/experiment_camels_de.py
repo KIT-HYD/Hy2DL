@@ -13,7 +13,6 @@
 # [1]: "Houska, T., Kraft, P., Chamorro-Chavez, A. and Breuer, L.: SPOTting Model Parameters Using a Ready-Made Python 
 # Package, PLoS ONE, 10(12), e0145180, doi:10.1371/journal.pone.0145180, 2015"
 
-
 #Import necessary packages
 import sys
 import os
@@ -39,7 +38,6 @@ from evaluation_metrics import nse_loss
 
 # -----------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__': 
-    
     # Initialize information
     path_entities= '../../data/basin_id/basins_camels_de_1583.txt'
     path_data = '../../data/CAMELS_DE'
@@ -74,7 +72,6 @@ if __name__ == '__main__':
         print(f"Folder '{path_output}' created successfully.")
     else:
         print(f"Folder '{path_output}' already exists.")
-    
     
     # Process the basins in batches (avoid memory issues)
     dfs = []
