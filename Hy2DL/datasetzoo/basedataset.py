@@ -253,13 +253,19 @@ class BaseDataset(Dataset):
         standardize_output : bool
             Boolean to define if the output should be standardize or not. 
         """
+
         for basin in self.sequence_data.values():
             # Standardize lstm
+            if (self.scaler["x_d_std"] == 0).any(): raise ValueError("Standard deviation of the dynamic input is zero")
+            if (self.scaler["x_s_std"] == 0).any(): raise ValueError("Standard deviation of the static input is zero")
+
             basin['x_d'] = (basin['x_d'] - self.scaler['x_d_mean']) / self.scaler['x_d_std']
             if self.static_input:
                 basin['x_s'] = (basin['x_s'] - self.scaler['x_s_mean']) / self.scaler['x_s_std']
             if standardize_output:
                 basin['y_obs'] = (basin['y_obs'] - self.scaler['y_mean']) / self.scaler['y_std']
+
+            
 
 
 @njit()
