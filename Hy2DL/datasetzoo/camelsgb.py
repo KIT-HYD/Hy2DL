@@ -2,7 +2,7 @@
 import pandas as pd
 from pathlib import Path
 from typing import List, Optional
-from basedataset import BaseDataset
+from Hy2DL.datasetzoo.basedataset import BaseDataset
 
 
 class CAMELS_GB(BaseDataset):

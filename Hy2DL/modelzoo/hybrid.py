@@ -1,7 +1,7 @@
 from typing import Dict, Union
 import torch
 import torch.nn as nn
-from baseconceptualmodel import BaseConceptualModel
+from Hy2DL.modelzoo.baseconceptualmodel import BaseConceptualModel
 
 class Hybrid(nn.Module):
     """Wrapper to combine a deep learning model with a conceptual hydrological models. 

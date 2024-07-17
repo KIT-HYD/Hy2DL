@@ -1,6 +1,6 @@
 from typing import List, Dict, Union, Optional, Tuple
 import torch
-from baseconceptualmodel import BaseConceptualModel
+from Hy2DL.modelzoo.baseconceptualmodel import BaseConceptualModel
 
 class SHM(BaseConceptualModel):
     """Modified version of the SHM [1]_ model. 
