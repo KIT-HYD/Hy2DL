@@ -79,8 +79,8 @@ class Hybrid(nn.Module):
                          dtype=torch.float32, device=x_lstm.device)
         
         # run LSTM
-        lstm_out, _ = self.lstm(x_lstm, (h0, c0))
-        lstm_out = self.linear(lstm_out)
+        hs, _ = self.lstm(x_lstm, (h0, c0))
+        lstm_out = self.linear(hs)
         # map lstm output to parameters of conceptual model
         parameters_warmup, parameters_simulation = self.conceptual_model.map_parameters(lstm_out=lstm_out[:,:,:self.n_conceptual_model_params],
                                                                                         warmup_period=self.warmup_period) 
@@ -98,5 +98,6 @@ class Hybrid(nn.Module):
                                                                         warmup_period=self.warmup_period)
             # apply routing routine
             pred['y_hat'] = self.routing_model(discharge=pred['y_hat'], parameters=parameters_simulation)
-        
+        pred["hidden_states"] = hs[:, self.warmup_period:, :]
+
         return pred
