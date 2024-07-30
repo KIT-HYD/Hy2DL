@@ -164,6 +164,7 @@ data/basin_id/*
 data/CAMELS_GB/*
 data/CAMELS_US/*
 data/CAMELS_DE/*
+Hy2DL/experiments/train_lstm.py
 Hy2DL/results/*
 !Hy2DL/results/Results_Analysis.ipynb
 Hy2DL/experiments/Test_NH.ipynb

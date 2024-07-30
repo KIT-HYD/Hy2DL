@@ -1,4 +1,5 @@
-from typing import List, Dict, Union, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
+
 import torch
 from baseconceptualmodel import BaseConceptualModel
 
@@ -19,27 +20,25 @@ class NonSense(BaseConceptualModel):
 
     References
     ----------
-    .. [1] Acuña Espinoza, E., Loritz, R., Álvarez Chaves, M., Bäuerle, N., and Ehret, U.: To Bucket or not to Bucket? 
-    Analyzing the performance and interpretability of hybrid hydrological models with dynamic parameterization, 
+    .. [1] Acuña Espinoza, E., Loritz, R., Álvarez Chaves, M., Bäuerle, N., and Ehret, U.: To Bucket or not to Bucket?
+    Analyzing the performance and interpretability of hybrid hydrological models with dynamic parameterization,
     Hydrology and Earth System Sciences, 28, 2705–2719, https://doi.org/10.5194/hess-28-2705-2024, 2024.
     """
-    def __init__(self, n_models: int = 1, parameter_type:List[str]=None):
+
+    def __init__(self, n_models: int = 1, parameter_type: List[str] = None):
         super(NonSense, self).__init__()
         self.n_conceptual_models = n_models
         self.parameter_type = self._map_parameter_type(parameter_type=parameter_type)
         self.output_size = 1
 
-    def forward(
-        self,
-        x_conceptual: torch.Tensor,
-        parameters: Dict[str, torch.Tensor],
+    def forward(self, x_conceptual: torch.Tensor, parameters: Dict[str, torch.Tensor],
         initial_states: Optional[Dict[str, torch.Tensor]] = None,
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
         """
         Forward pass of the Nonsense model (conceptual model).
 
         In the forward pass, each element of the batch is associated with a basin, therefore, the conceptual model is
-        run for multiple basins in parallel, and also for multiple entities of the model (n_models) at the same time.  
+        run for multiple basins in parallel, and also for multiple entities of the model (n_models) at the same time.
 
         Parameters
         ----------
@@ -48,10 +47,8 @@ class NonSense(BaseConceptualModel):
             certain prediction period. The time_steps refer to the number of time steps (e.g. days) that the conceptual
             model is going to be run for. The n_inputs refer to the dynamic forcing used to run the conceptual model (e.g.
             precipitation, temperature, ...)
-
         parameters: Dict[str, torch.Tensor]
             Dict with parametrization of the conceptual model.
-
         initial_states: Optional[Dict[str, torch.Tensor]]
             Optional parameter! In case one wants to specify the initial state of the internal states of the conceptual
             model.
@@ -163,11 +160,11 @@ class NonSense(BaseConceptualModel):
 
             # Outflow
             out[:, j, :] = qu_out  # [mm]
-        
+
         # Save last states
         final_states = self._get_final_states(states=states)
 
-        return {"y_hat": out, "parameters": parameters, "internal_states": states, 'final_states': final_states}
+        return {"y_hat": out, "parameters": parameters, "internal_states": states, "final_states": final_states}
 
     @property
     def _initial_states(self) -> Dict[str, float]:

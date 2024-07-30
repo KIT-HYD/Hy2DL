@@ -1,5 +1,6 @@
 import os
 import random
+
 import numpy as np
 import torch
 
@@ -56,12 +57,12 @@ def write_report(file_path: str, text: str):
 
     """
     if os.path.exists(file_path):
-        append_write = 'a' # append if already exists   
+        append_write = "a" # append if already exists   
     else:
-        append_write = 'w' # make a new file if not
+        append_write = "w" # make a new file if not
 
     highscore = open(file_path , append_write)
-    highscore.write(text + '\n')
+    highscore.write(text + "\n")
     highscore.close()
 
 
