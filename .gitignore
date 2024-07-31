@@ -170,6 +170,4 @@ neuralhydrology
 extrapolation_analysis
 experiments_NH
 gcp_connection.txt
-
-
-
+*.zip
