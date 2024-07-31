@@ -45,8 +45,8 @@ class CudaLSTM(nn.Module):
                          device=x.device)
         
         out, (hn_1, cn_1) = self.lstm(x, (h0, c0))
-        out = out[:,-1,:] # sequence to one
-        out = self.dropout(out)
+        hs = out[:,-1,:] # sequence to one
+        out = self.dropout(hs)
         out = self.linear(out)
 
-        return {'y_hat': out}
+        return {'y_hat': out, 'hidden_states': hs}
