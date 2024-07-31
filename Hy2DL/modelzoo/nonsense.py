@@ -19,15 +19,27 @@ class NonSense(BaseConceptualModel):
 
     References
     ----------
-    .. [1] Acuña Espinoza, E., Loritz, R., Álvarez Chaves, M., Bäuerle, N., and Ehret, U.: To Bucket or not to Bucket? 
-    Analyzing the performance and interpretability of hybrid hydrological models with dynamic parameterization, 
+    .. [1] Acuña Espinoza, E., Loritz, R., Álvarez Chaves, M., Bäuerle, N., and Ehret, U.: To Bucket or not to Bucket?
+    Analyzing the performance and interpretability of hybrid hydrological models with dynamic parameterization,
     Hydrology and Earth System Sciences, 28, 2705–2719, https://doi.org/10.5194/hess-28-2705-2024, 2024.
     """
-    def __init__(self, n_models: int = 1, parameter_type:List[str]=None):
-        super(NonSense, self).__init__()
+
+    default_initial_states = {"ss": 0.001, "su": 0.001, "si": 0.001, "sb": 0.001}
+
+    parameter_ranges = {
+        "dd": (0.0, 10.0),
+        "sumax": (20.0, 700.0),
+        "beta": (1.0, 6.0),
+        "ki": (0.01, 0.5),
+        "kb": (0.001, 0.2),
+    }
+
+    named_fluxes = ["qs_out", "qsp_out", "qb_out", "qi_out", "qu_out", "ret"]
+
+    def __init__(self, n_models: int = 1, parameter_type: List[str] = None):
+        super().__init__()
         self.n_conceptual_models = n_models
         self.parameter_type = self._map_parameter_type(parameter_type=parameter_type)
-        self.output_size = 1
 
     def forward(
         self,
@@ -39,7 +51,7 @@ class NonSense(BaseConceptualModel):
         Forward pass of the Nonsense model (conceptual model).
 
         In the forward pass, each element of the batch is associated with a basin, therefore, the conceptual model is
-        run for multiple basins in parallel, and also for multiple entities of the model (n_models) at the same time.  
+        run for multiple basins in parallel, and also for multiple entities of the model (n_models) at the same time.
 
         Parameters
         ----------
@@ -69,7 +81,7 @@ class NonSense(BaseConceptualModel):
                 Internal states of the conceptual model for the last time-step
         """
         # initialize structures to store the information
-        states, out = self._initialize_information(conceptual_inputs=x_conceptual)
+        states, fluxes = self._initialize_information(conceptual_inputs=x_conceptual)
 
         # initialize constants
         zero = torch.tensor(0.00, dtype=torch.float32, device=x_conceptual.device)
@@ -77,9 +89,18 @@ class NonSense(BaseConceptualModel):
         klu = torch.tensor(0.90, dtype=torch.float32, device=x_conceptual.device)  # land use correction factor [-]
 
         # Broadcast input tensor to consider multiple conceptual models in parallel
-        precipitation = torch.tile(x_conceptual[:, :, 0].unsqueeze(2), (1, 1, self.n_conceptual_models))
-        et = torch.tile(x_conceptual[:, :, 1].unsqueeze(2), (1, 1, self.n_conceptual_models))
-        temperature = torch.tile(x_conceptual[:, :, 2].unsqueeze(2), (1, 1, self.n_conceptual_models))
+        precipitation = torch.tile(
+            x_conceptual[:, :, 0].unsqueeze(2),
+            (1, 1, self.n_conceptual_models),
+        )
+        et = torch.tile(
+            x_conceptual[:, :, 1].unsqueeze(2),
+            (1, 1, self.n_conceptual_models),
+        )
+        temperature = torch.tile(
+            x_conceptual[:, :, 2].unsqueeze(2),
+            (1, 1, self.n_conceptual_models),
+        )
 
         # Division between solid and liquid precipitation can be done outside of the loop as temperature is given
         temp_mask = temperature < 0
@@ -92,30 +113,33 @@ class NonSense(BaseConceptualModel):
         snow = precipitation.clone()
         snow[~temp_mask] = zero
         # Permanent wilting point (pwp) used in ET
-        pwp = torch.tensor(0.8, dtype=torch.float32, device=x_conceptual.device) * parameters["sumax"]
+        pwp = (
+            torch.tensor(0.8, dtype=torch.float32, device=x_conceptual.device)
+            * parameters["sumax"]
+        )
 
         if initial_states is None:  # if not specified, take the default values
             ss = torch.full(
                 (x_conceptual.shape[0], self.n_conceptual_models),
-                self._initial_states["ss"],
+                self.default_initial_states["ss"],
                 dtype=torch.float32,
                 device=x_conceptual.device,
             )
             sb = torch.full(
                 (x_conceptual.shape[0], self.n_conceptual_models),
-                self._initial_states["sb"],
+                self.default_initial_states["sb"],
                 dtype=torch.float32,
                 device=x_conceptual.device,
             )
             si = torch.full(
                 (x_conceptual.shape[0], self.n_conceptual_models),
-                self._initial_states["si"],
+                self.default_initial_states["si"],
                 dtype=torch.float32,
                 device=x_conceptual.device,
             )
             su = torch.full(
                 (x_conceptual.shape[0], self.n_conceptual_models),
-                self._initial_states["su"],
+                self.default_initial_states["su"],
                 dtype=torch.float32,
                 device=x_conceptual.device,
             )
@@ -132,14 +156,14 @@ class NonSense(BaseConceptualModel):
             ss = ss - qs_out + snow[:, j, :]
             qsp_out = qs_out + liquid_p[:, j, :]
 
-            # Baseflow reservoir -------------------
+            # Baseflow ----------------------------
             sb = sb + qsp_out  # [mm]
-            qb_out = sb / parameters["kb"][:, j, :]  # [mm]
+            qb_out = sb * parameters["kb"][:, j, :]  # [mm]
             sb = sb - qb_out  # [mm]
 
-            # Interflow
+            # Interflow ----------------------------
             si = si + qb_out  # [mm]
-            qi_out = si / parameters["ki"][:, j, :]  # [mm]
+            qi_out = si * parameters["ki"][:, j, :]  # [mm]
             si = si - qi_out  # [mm]
 
             # Unsaturated zone --------------------
@@ -155,24 +179,26 @@ class NonSense(BaseConceptualModel):
             ret = et[:, j, :] * klu * ktetha  # [mm]
             su = torch.maximum(zero, su - ret)  # [mm]
 
-            # Save internal states
+            # Store internal states
             states["ss"][:, j, :] = ss
             states["sb"][:, j, :] = sb
             states["si"][:, j, :] = si
             states["su"][:, j, :] = su
 
-            # Outflow
-            out[:, j, :] = qu_out  # [mm]
-        
+            # Store fluxes
+            fluxes["qs_out"][:, j, :] = qs_out
+            fluxes["qsp_out"][:, j, :] = qsp_out
+            fluxes["qb_out"][:, j, :] = qb_out
+            fluxes["qi_out"][:, j, :] = qi_out
+            fluxes["qu_out"][:, j, :] = qu_out
+            fluxes["ret"][:, j, :] = ret
+
         # Save last states
         final_states = self._get_final_states(states=states)
 
-        return {"y_hat": out, "parameters": parameters, "internal_states": states, 'final_states': final_states}
-
-    @property
-    def _initial_states(self) -> Dict[str, float]:
-        return {"ss": 0.0, "su": 5.0, "si": 10.0, "sb": 15.0}
-
-    @property
-    def parameter_ranges(self) -> Dict[str, Tuple[float, float]]:
-        return {"dd": (0.0, 10.0), "sumax": (20.0, 700.0), "beta": (1.0, 6.0), "ki": (1.0, 100.0), "kb": (10.0, 1000.0)}
+        return {
+            "fluxes": fluxes,
+            "states": states,
+            "parameters": parameters,
+            "final_states": final_states,
+        }

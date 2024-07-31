@@ -85,8 +85,8 @@ class BaseConceptualModel(nn.Module):
         map_parameter_type: Dict[str, str]
             Dictionary 
         """
-        map_parameter_type={}
-        for key, _ in self.parameter_ranges.items():
+        map_parameter_type = {}
+        for key in self.parameter_ranges.keys():
             if parameter_type is not None and key in parameter_type: # if user specified the type
                 map_parameter_type[key] = 'dynamic'
             else: # default initialization
@@ -112,15 +112,21 @@ class BaseConceptualModel(nn.Module):
         """
         states = {}
         # initialize dictionary to store the evolution of the states
-        for name, _ in self._initial_states.items():
+        for name in self.default_initial_states.keys():
             states[name] = torch.zeros((conceptual_inputs.shape[0], conceptual_inputs.shape[1], 
                                         self.n_conceptual_models), dtype=torch.float32, device=conceptual_inputs.device)
 
         # initialize vectors to store the evolution of the outputs
-        out = torch.zeros((conceptual_inputs.shape[0], conceptual_inputs.shape[1], self.output_size), 
-                          dtype=torch.float32, device=conceptual_inputs.device)
+        fluxes = {}
+        for name in self.named_fluxes:
+            fluxes[name] = torch.zeros((conceptual_inputs.shape[0], conceptual_inputs.shape[1], 
+                                        self.n_conceptual_models), dtype=torch.float32, device=conceptual_inputs.device)
 
-        return states, out
+
+        # out = torch.zeros((conceptual_inputs.shape[0], conceptual_inputs.shape[1], self.output_size), 
+        #                   dtype=torch.float32, device=conceptual_inputs.device)
+
+        return states, fluxes
     
     def _get_final_states(self, states: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Recovers final states of the conceptual model.
@@ -135,12 +141,5 @@ class BaseConceptualModel(nn.Module):
         Dict[str, torch.Tensor]
             Dictionary with the internal states (buckets) of the conceptual model, on the last timestep 
         """
-        return {name: state[:, -1, :] for name, state in states.items()}
+        return {name: values[:, -1, :] for name, values in states.items()}
     
-    @property
-    def _initial_states(self)-> Dict[str, float]:
-        raise NotImplementedError
-
-    @property
-    def parameter_ranges(self) -> Dict[str, List[float]]:
-        raise NotImplementedError
