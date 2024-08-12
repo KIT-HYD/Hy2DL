@@ -165,7 +165,7 @@ data/CAMELS_GB/*
 data/CAMELS_US/*
 data/CAMELS_DE/*
 data/nldas_hourly/*
-data/usgs_streamflow/*
+data/usgs_hourly_streamflow/*
 Hy2DL/experiments/train_lstm.py
 Hy2DL/results/*
 !Hy2DL/results/Results_Analysis.ipynb

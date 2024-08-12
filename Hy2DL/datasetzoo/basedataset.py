@@ -69,7 +69,7 @@ class BaseDataset(Dataset):
         check_NaN: bool = True,
     ):
         self.dynamic_input = dynamic_input
-        self.conceptual_input = conceptual_input
+        self.conceptual_input = conceptual_input if conceptual_input is not None else []
         self.target = target
 
         self.sequence_length = sequence_length
@@ -94,7 +94,7 @@ class BaseDataset(Dataset):
         self.valid_entities = []
 
         # process the attributes
-        self.static_input = static_input  # static attributes going as inputs to the lstm
+        self.static_input = static_input if static_input is not None else []
         if static_input:
             self.df_attributes = self._read_attributes()
 
@@ -121,7 +121,7 @@ class BaseDataset(Dataset):
             ) * pd.tseries.frequencies.to_offset(freq)
 
             # filter dataframe for the period and variables of interest
-            unique_inputs = list(set(dynamic_input + conceptual_input))
+            unique_inputs = list(set(self.dynamic_input + self.conceptual_input))
             keep_columns = unique_inputs + self.target
             df_ts = df_ts.loc[warmup_start_date:end_date, keep_columns]
 
