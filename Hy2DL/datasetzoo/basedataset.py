@@ -95,7 +95,7 @@ class BaseDataset(Dataset):
 
         # process the attributes
         self.static_input = static_input if static_input is not None else []
-        if static_input:
+        if self.static_input:
             self.df_attributes = self._read_attributes()
 
         # process additional features that will be included in the inputs (optional) ---
@@ -134,7 +134,7 @@ class BaseDataset(Dataset):
             flag = validate_samples(
                 x=df_ts.loc[:, unique_inputs].values,
                 y=df_ts.loc[:, self.target].values,
-                attributes=self.df_attributes.loc[id].values if static_input else None,
+                attributes=self.df_attributes.loc[id].values if self.static_input else None,
                 seq_length=self.sequence_length,
                 predict_last_n=self.predict_last_n,
                 check_NaN=check_NaN,
