@@ -267,6 +267,17 @@ class BaseDataset(Dataset):
             if standardize_output:
                 basin['y_obs'] = (basin['y_obs'] - self.scaler['y_mean']) / self.scaler['y_std']
 
+    def regenerate_samples(self):
+        for id in self.entities_ids:
+            # create dictionary entry for the basin
+            self.sequence_data[id] = {}
+            # store the information of the basin in a nested dictionary
+            self.sequence_data[id]['x_d'] = torch.tensor(self.df_ts[id].loc[:, self.dynamic_input].values, dtype=torch.float32)
+            self.sequence_data[id]['y_obs'] = torch.tensor(self.df_ts[id].loc[:, self.target].values, dtype=torch.float32)
+            if self.conceptual_input:
+                self.sequence_data[id]['x_conceptual'] = torch.tensor(self.df_ts[id].loc[:, self.conceptual_input].values, dtype=torch.float32)
+            if self.static_input:
+                self.sequence_data[id]['x_s'] = torch.tensor(self.df_attributes.loc[id].values, dtype=torch.float32)
             
 
 

@@ -92,6 +92,7 @@ class Hybrid(nn.Module):
         pred = self.conceptual_model(x_conceptual=x_conceptual[:,self.warmup_period:,:], 
                                      parameters=parameters_simulation, 
                                      initial_states = pred['final_states'])
+        
         # Conceptual routing
         if self.n_routing_params>0:
             _ , parameters_simulation = self.routing_model.map_parameters(lstm_out=lstm_out[:,:,self.n_conceptual_model_params:],

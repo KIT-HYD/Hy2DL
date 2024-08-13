@@ -52,7 +52,6 @@ class BaseConceptualModel(nn.Module):
         for index, (parameter_name, parameter_range) in enumerate(self.parameter_ranges.items()):
             range_t = torch.tensor(parameter_range, dtype=torch.float32, device=lstm_out.device)
             range_t = range_t.unsqueeze(dim=1).unsqueeze(dim=2)
-
             if self.parameter_type[parameter_name] == 'static':
                 # If parameter is static, take the last value predicted by the lstm and copy it for all the timesteps.
                 warmup_lstm_out = lstm_out[:, -1:, index, :].expand(-1, warmup_period, -1)
@@ -65,7 +64,7 @@ class BaseConceptualModel(nn.Module):
 
             parameters_warmup[parameter_name] = range_t[:1,:,:] + torch.sigmoid(warmup_lstm_out) * (range_t[1:,:,:] - range_t[:1,:,:])
             parameters_simulation[parameter_name] = range_t[:1,:,:] + torch.sigmoid(simulation_lstm_out) * (range_t[1:,:,:] - range_t[:1,:,:])
-     
+
         return parameters_warmup, parameters_simulation
 
     def _map_parameter_type(self, parameter_type:List[str]=None):
