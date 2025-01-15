@@ -4,7 +4,7 @@ This version of the Hy2DL repository is no longer supported, as we’ve moved to
 
 Access the new repository here: [Hy2DL](https://github.com/eduardoAcunaEspinoza/Hy2DL).
 
-What's New in the Updated Repository:
+What's New in the updated repository:
 - **Optimized folder structure**: Now follows standard Python package guidelines.
 - **Benchmark tests**: Comparison of our library against other studies from scientific literature.
 - **New Models**: We have implemented a new model to handle daily/hourly data.
